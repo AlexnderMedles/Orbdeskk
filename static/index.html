@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrbDesk | Удалённый рабочий стол</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- ═══ Экран 1: Главная ═══ -->
+    <div id="landing-page" class="page active">
+        <div class="glass-card main-card">
+            <div class="hero">
+                <div class="logo-orb">
+                    <div class="orb-glow"></div>
+                    <span class="logo-text">Orb<span class="accent">Desk</span></span>
+                </div>
+                <p class="tagline">Удалённый рабочий стол<br>прямо из браузера</p>
+            </div>
+
+            <div class="role-buttons">
+                <button id="btn-host" class="role-btn host-btn">
+                    <span class="role-icon">🖥️</span>
+                    <div>
+                        <span class="role-title">Дать доступ к моему ПК</span>
+                        <span class="role-desc">Другой человек сможет видеть и управлять</span>
+                    </div>
+                </button>
+                <button id="btn-viewer" class="role-btn viewer-btn">
+                    <span class="role-icon">🎮</span>
+                    <div>
+                        <span class="role-title">Подключиться к ПК</span>
+                        <span class="role-desc">Введите код и помогите другу</span>
+                    </div>
+                </button>
+            </div>
+
+            <div class="features">
+                <div class="feature-item"><span class="icon">⚡</span>
+                    <p>Быстро</p>
+                </div>
+                <div class="feature-item"><span class="icon">🔒</span>
+                    <p>Безопасно</p>
+                </div>
+                <div class="feature-item"><span class="icon">🎮</span>
+                    <p>Управление</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Экран 2: Хост ═══ -->
+    <div id="host-page" class="page">
+        <div class="glass-card host-card">
+            <button id="back-from-host" class="back-btn">← Назад</button>
+            <div class="host-content">
+                <div class="share-icon-large">🖥️</div>
+                <h2>Дать доступ к ПК</h2>
+                <p class="host-subtitle">Скачайте и запустите маленький файл — он сгенерирует код для подключения</p>
+
+                <a href="/download/agent" class="primary-btn download-btn" download>
+                    ⬇️ Скачать OrbDesk Agent
+                </a>
+
+                <div class="steps-mini">
+                    <p>1. Скачайте файл <code>orbdesk_host.py</code></p>
+                    <p>2. Установите: <code>pip install mss pyautogui Pillow websockets</code></p>
+                    <p>3. Запустите: <code>python orbdesk_host.py</code></p>
+                    <p>4. Код появится в терминале — сообщите его другу</p>
+                </div>
+
+                <div class="agent-features">
+                    <div class="af-item">🔒 <strong>C</strong> — вкл/выкл управление</div>
+                    <div class="af-item">👢 <strong>K</strong> — выгнать зрителя</div>
+                    <div class="af-item">❌ <strong>Q</strong> — завершить</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Экран 3: Зритель (ввод кода) ═══ -->
+    <div id="viewer-page" class="page">
+        <div class="glass-card viewer-card">
+            <button id="back-from-viewer" class="back-btn">← Назад</button>
+            <div class="viewer-content">
+                <div class="connect-icon-large">🎮</div>
+                <h2>Подключение</h2>
+                <p class="viewer-subtitle">Введите код доступа от друга</p>
+
+                <div class="pin-input" id="pin-container">
+                    <input type="text" maxlength="1" class="pin-digit" data-index="0" inputmode="numeric"
+                        autocomplete="off">
+                    <input type="text" maxlength="1" class="pin-digit" data-index="1" inputmode="numeric"
+                        autocomplete="off">
+                    <input type="text" maxlength="1" class="pin-digit" data-index="2" inputmode="numeric"
+                        autocomplete="off">
+                    <span class="pin-separator">—</span>
+                    <input type="text" maxlength="1" class="pin-digit" data-index="3" inputmode="numeric"
+                        autocomplete="off">
+                    <input type="text" maxlength="1" class="pin-digit" data-index="4" inputmode="numeric"
+                        autocomplete="off">
+                    <input type="text" maxlength="1" class="pin-digit" data-index="5" inputmode="numeric"
+                        autocomplete="off">
+                </div>
+
+                <p id="pin-error" class="pin-error"></p>
+
+                <button id="connect-btn" class="primary-btn" disabled>
+                    Подключиться
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Экран 4: Удалённый рабочий стол ═══ -->
+    <div id="remote-page" class="page">
+        <div class="glass-nav">
+            <div class="logo-small">Orb<span class="accent">Desk</span></div>
+            <div class="nav-controls">
+                <span id="control-badge" class="control-badge allowed">🎮 Управление</span>
+                <span id="session-status" class="session-status">Подключение...</span>
+                <button id="close-session" class="close-btn" title="Отключиться">✕</button>
+            </div>
+        </div>
+
+        <div class="viewport-container">
+            <canvas id="screen-canvas"></canvas>
+            <div class="loader" id="loader">
+                <div class="loader-spinner"></div>
+                <p>Загрузка экрана...</p>
+            </div>
+        </div>
+
+        <div class="floating-toolbar">
+            <button id="fullscreen" title="На весь экран">⛶</button>
+        </div>
+    </div>
+
+    <input type="text" id="hidden-input" style="position:absolute;opacity:0;pointer-events:none;">
+
+    <script src="script.js"></script>
+</body>
+
+</html>
