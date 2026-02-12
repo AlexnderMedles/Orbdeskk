@@ -71,16 +71,21 @@ async def ws_host(ws: WebSocket, code: str = Query("")):
         while True:
             data = await ws.receive()
             if "bytes" in data:
-                # Кадр экрана → рассылаем зрителям
+                # Кадр экрана → рассылаем зрителям ПАРАЛЛЕЛЬНО
                 frame = data["bytes"]
-                dead = []
-                for v in sessions[code]["viewers"]:
-                    try:
-                        await v.send_bytes(frame)
-                    except:
-                        dead.append(v)
-                for d in dead:
-                    sessions[code]["viewers"].remove(d)
+                viewers = sessions[code]["viewers"]
+                if viewers:
+                    async def _send(v):
+                        try:
+                            await v.send_bytes(frame)
+                            return True
+                        except:
+                            return False
+
+                    results = await asyncio.gather(*[_send(v) for v in viewers])
+                    dead = [v for v, ok in zip(viewers, results) if not ok]
+                    for d in dead:
+                        viewers.remove(d)
 
             elif "text" in data:
                 msg = json.loads(data["text"])

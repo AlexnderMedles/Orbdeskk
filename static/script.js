@@ -375,7 +375,7 @@ qualitySelector.addEventListener('click', (e) => {
 
     // Отправляем хосту через WebSocket
     send({ action: 'set_quality', profile: quality });
-    showToast(`📊 Качество: ${{ 'low': 'Низкое', 'medium': 'Среднее', 'high': 'Высокое' }[quality]}`);
+    showToast(`📊 Качество: ${{ 'low': 'Низкое (15 FPS)', 'medium': 'Среднее (30 FPS)', 'high': 'Высокое (60 FPS)' }[quality]}`);
 });
 
 
