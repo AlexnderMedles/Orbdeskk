@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrbDesk | Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #020617;
+            --accent: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text: #e2e8f0;
+            --text-dim: rgba(255, 255, 255, 0.45);
+            --success: #4ade80;
+            --danger: #f43f5e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 900;
+        }
+
+        .logo .accent {
+            color: var(--accent);
+        }
+
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 14px;
+            margin-top: 6px;
+        }
+
+        /* Enter Code */
+        .code-entry {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 32px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .code-entry label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+        }
+
+        .code-input {
+            width: 200px;
+            padding: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 24px;
+            font-weight: 900;
+            text-align: center;
+            letter-spacing: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 2px solid var(--glass-border);
+            border-radius: 14px;
+            color: var(--accent);
+            outline: none;
+            caret-color: var(--accent);
+            transition: all 0.25s;
+        }
+
+        .code-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 24px rgba(56, 189, 248, 0.15);
+        }
+
+        .load-btn {
+            display: inline-block;
+            margin-top: 16px;
+            padding: 12px 32px;
+            background: var(--accent);
+            color: #000;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .load-btn:hover {
+            background: var(--accent-hover);
+            transform: scale(1.04);
+        }
+
+        /* Dashboard Card */
+        .dashboard-card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 32px;
+            display: none;
+        }
+
+        .dashboard-card.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .dash-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .dash-row:last-child {
+            border-bottom: none;
+        }
+
+        .dash-label {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .dash-value {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .status-online {
+            color: var(--success);
+        }
+
+        .status-offline {
+            color: var(--danger);
+        }
+
+        .dash-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .dash-btn {
+            flex: 1;
+            padding: 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .dash-btn:hover {
+            transform: scale(1.03);
+        }
+
+        .btn-control {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .btn-control.denied {
+            background: rgba(244, 63, 94, 0.15);
+            color: var(--danger);
+            border-color: rgba(244, 63, 94, 0.3);
+        }
+
+        .btn-kick {
+            background: rgba(244, 63, 94, 0.12);
+            color: var(--danger);
+            border: 1px solid rgba(244, 63, 94, 0.2);
+        }
+
+        .btn-kick:hover {
+            background: rgba(244, 63, 94, 0.25);
+        }
+
+        .error-msg {
+            color: var(--danger);
+            font-size: 13px;
+            margin-top: 12px;
+        }
+
+        .refresh-note {
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Orb<span class="accent">Desk</span> Dashboard</div>
+            <p class="subtitle">Панель управления хоста</p>
+        </div>
+
+        <div class="code-entry">
+            <label>Введите код сессии</label>
+            <input type="text" class="code-input" id="dash-code" maxlength="6" inputmode="numeric" autocomplete="off"
+                placeholder="000000">
+            <br>
+            <button class="load-btn" id="dash-load">Загрузить</button>
+            <p class="error-msg" id="dash-error"></p>
+        </div>
+
+        <div class="dashboard-card" id="dash-card">
+            <div class="dash-row">
+                <span class="dash-label">Статус</span>
+                <span class="dash-value" id="d-status">—</span>
+            </div>
+            <div class="dash-row">
+                <span class="dash-label">Код сессии</span>
+                <span class="dash-value" id="d-code">—</span>
+            </div>
+            <div class="dash-row">
+                <span class="dash-label">Зрителей</span>
+                <span class="dash-value" id="d-viewers">0</span>
+            </div>
+            <div class="dash-row">
+                <span class="dash-label">Управление</span>
+                <span class="dash-value" id="d-control">—</span>
+            </div>
+            <div class="dash-row">
+                <span class="dash-label">Пароль</span>
+                <span class="dash-value" id="d-password">—</span>
+            </div>
+            <div class="dash-row">
+                <span class="dash-label">Мониторов</span>
+                <span class="dash-value" id="d-monitors">—</span>
+            </div>
+
+            <div class="dash-actions">
+                <button class="dash-btn btn-control" id="d-toggle">🎮 Вкл/Выкл управление</button>
+                <button class="dash-btn btn-kick" id="d-kick">👢 Выгнать всех</button>
+            </div>
+        </div>
+
+        <p class="refresh-note" id="refresh-note" style="display:none">Обновляется каждые 3 секунды</p>
+    </div>
+
+    <script>
+        const codeInput = document.getElementById('dash-code');
+        const loadBtn = document.getElementById('dash-load');
+        const errorMsg = document.getElementById('dash-error');
+        const card = document.getElementById('dash-card');
+        let currentCode = '';
+        let refreshInterval = null;
+
+        loadBtn.addEventListener('click', loadDashboard);
+        codeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') loadDashboard();
+        });
+
+        async function loadDashboard() {
+            const code = codeInput.value.trim();
+            if (code.length !== 6) {
+                errorMsg.textContent = 'Введите 6-значный код';
+                return;
+            }
+            errorMsg.textContent = '';
+            currentCode = code;
+
+            try {
+                const resp = await fetch(`/api/dashboard?code=${code}`);
+                if (!resp.ok) {
+                    errorMsg.textContent = 'Сессия не найдена или хост оффлайн';
+                    card.classList.remove('active');
+                    return;
+                }
+                const data = await resp.json();
+                renderDashboard(data);
+                card.classList.add('active');
+                document.getElementById('refresh-note').style.display = '';
+
+                // Auto-refresh
+                if (refreshInterval) clearInterval(refreshInterval);
+                refreshInterval = setInterval(refreshDashboard, 3000);
+            } catch {
+                errorMsg.textContent = 'Ошибка связи с сервером';
+            }
+        }
+
+        async function refreshDashboard() {
+            try {
+                const resp = await fetch(`/api/dashboard?code=${currentCode}`);
+                if (!resp.ok) {
+                    card.classList.remove('active');
+                    errorMsg.textContent = 'Сессия завершена';
+                    clearInterval(refreshInterval);
+                    return;
+                }
+                const data = await resp.json();
+                renderDashboard(data);
+            } catch { }
+        }
+
+        function renderDashboard(data) {
+            document.getElementById('d-status').innerHTML = '<span class="status-online">🟢 Онлайн</span>';
+            document.getElementById('d-code').textContent = data.code;
+            document.getElementById('d-viewers').textContent = data.viewers;
+            document.getElementById('d-monitors').textContent = (data.monitors || []).length || '1';
+
+            const ctrl = data.control_allowed;
+            const ctrlEl = document.getElementById('d-control');
+            ctrlEl.innerHTML = ctrl
+                ? '<span class="status-online">✅ Разрешено</span>'
+                : '<span class="status-offline">🔒 Запрещено</span>';
+
+            const toggleBtn = document.getElementById('d-toggle');
+            toggleBtn.className = 'dash-btn btn-control' + (ctrl ? '' : ' denied');
+            toggleBtn.textContent = ctrl ? '🔒 Запретить управление' : '🎮 Разрешить управление';
+
+            document.getElementById('d-password').textContent = data.has_password ? '🔑 Установлен' : '—';
+        }
+
+        document.getElementById('d-toggle').addEventListener('click', async () => {
+            try {
+                await fetch('/api/dashboard/toggle_control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: currentCode })
+                });
+                refreshDashboard();
+            } catch { }
+        });
+
+        document.getElementById('d-kick').addEventListener('click', async () => {
+            if (!confirm('Выгнать всех зрителей?')) return;
+            try {
+                await fetch('/api/dashboard/kick', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: currentCode })
+                });
+                refreshDashboard();
+            } catch { }
+        });
+    </script>
+</body>
+
+</html>

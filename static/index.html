@@ -74,7 +74,7 @@
                     <p>1. Скачайте файл <code>orbdesk_host.py</code></p>
                     <p>2. Установите: <code>pip install mss pyautogui Pillow websockets</code></p>
                     <p>3. Запустите: <code>python orbdesk_host.py</code></p>
-                    <p>4. Код появится в терминале — сообщите его другу</p>
+                    <p>4. Код и пароль появятся в терминале — сообщите их другу</p>
                 </div>
 
                 <div class="agent-features">
@@ -111,6 +111,13 @@
                         autocomplete="off">
                 </div>
 
+                <!-- Поле пароля (показывается если сессия защищена) -->
+                <div id="password-section" class="password-section hidden">
+                    <p class="password-label">🔒 Введите пароль сеанса</p>
+                    <input type="text" id="session-password" class="password-input" placeholder="Пароль"
+                        autocomplete="off" maxlength="10">
+                </div>
+
                 <p id="pin-error" class="pin-error"></p>
 
                 <button id="connect-btn" class="primary-btn" disabled>
@@ -129,12 +136,15 @@
                 <span id="session-status" class="session-status">Подключение...</span>
                 <button id="btn-settings" class="nav-icon-btn" title="Настройки">⚙️</button>
                 <button id="btn-syskeys" class="nav-icon-btn" title="Системные клавиши">⌨️</button>
+                <button id="btn-draw" class="nav-icon-btn" title="Рисование">✏️</button>
+                <button id="btn-chat" class="nav-icon-btn" title="Чат">💬</button>
                 <button id="close-session" class="close-btn" title="Отключиться">✕</button>
             </div>
         </div>
 
         <div class="viewport-container">
             <canvas id="screen-canvas"></canvas>
+            <canvas id="draw-canvas"></canvas>
             <div class="loader" id="loader">
                 <div class="loader-spinner"></div>
                 <p>Загрузка экрана...</p>
@@ -168,6 +178,12 @@
                         </button>
                     </div>
 
+                    <!-- Мониторы -->
+                    <label class="setting-label" style="margin-top: 18px;">Монитор</label>
+                    <div id="monitor-selector" class="monitor-selector">
+                        <span class="monitor-info">Обнаружение...</span>
+                    </div>
+
                     <label class="setting-label" style="margin-top: 18px;">Информация</label>
                     <div class="info-grid">
                         <div class="info-cell">
@@ -176,7 +192,7 @@
                         </div>
                         <div class="info-cell">
                             <span class="info-value" id="info-latency">—</span>
-                            <span class="info-label">Задержка</span>
+                            <span class="info-label">Сеанс</span>
                         </div>
                         <div class="info-cell">
                             <span class="info-value" id="info-resolution">—</span>
@@ -253,6 +269,39 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Chat Overlay -->
+        <div id="chat-overlay" class="overlay-panel chat-panel hidden">
+            <div class="overlay-glass chat-glass">
+                <div class="overlay-header">
+                    <h3>💬 Чат</h3>
+                    <button class="overlay-close" data-close="chat-overlay">✕</button>
+                </div>
+                <div class="chat-messages" id="chat-messages"></div>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" class="chat-input" placeholder="Написать сообщение..."
+                        autocomplete="off" maxlength="500">
+                    <button id="chat-send" class="chat-send-btn">➤</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Draw Toolbar -->
+        <div id="draw-toolbar" class="draw-toolbar hidden">
+            <div class="draw-colors">
+                <button class="draw-color active" data-color="#ff4444" style="background:#ff4444;"></button>
+                <button class="draw-color" data-color="#44ff44" style="background:#44ff44;"></button>
+                <button class="draw-color" data-color="#4488ff" style="background:#4488ff;"></button>
+                <button class="draw-color" data-color="#ffff44" style="background:#ffff44;"></button>
+                <button class="draw-color" data-color="#ffffff" style="background:#ffffff;"></button>
+            </div>
+            <div class="draw-sizes">
+                <button class="draw-size active" data-size="3">S</button>
+                <button class="draw-size" data-size="6">M</button>
+                <button class="draw-size" data-size="12">L</button>
+            </div>
+            <button id="draw-clear" class="draw-clear-btn">🗑️ Очистить</button>
         </div>
 
         <div class="floating-toolbar">

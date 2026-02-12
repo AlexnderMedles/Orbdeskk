@@ -34,25 +34,58 @@ except ImportError:
     sys.exit(1)
 
 # ═══ Выбор JPEG-энкодера ═══
-# turbojpeg в 10-15 раз быстрее Pillow
 USE_TURBOJPEG = False
 try:
-    from turbojpeg import TurboJPEG, TJPF_BGRA, TJSAMP_420, TJFLAG_FASTDCT
     import numpy as np
-    jpeg = TurboJPEG()
-    USE_TURBOJPEG = True
-    print("⚡ TurboJPEG: АКТИВЕН (максимальная скорость)")
-except ImportError:
+    from turbojpeg import TurboJPEG, TJPF_BGRA, TJSAMP_420, TJFLAG_FASTDCT
+    
+    # Пытаемся инициализировать DLL
     try:
-        from PIL import Image
-        print("⚠️  TurboJPEG не найден, используем Pillow (медленнее)")
-        print("    Для максимального FPS установите: pip install PyTurboJPEG numpy")
-        print("    И установите libjpeg-turbo: https://libjpeg-turbo.org/")
-    except ImportError:
-        print("Установите Pillow или PyTurboJPEG:")
-        print("  pip install Pillow")
-        print("  или (быстрее): pip install PyTurboJPEG numpy")
-        sys.exit(1)
+        jpeg = TurboJPEG()
+    except Exception:
+        # Если не нашлось по умолчанию, пробуем типичные пути Windows
+        import os
+        possible_dll_names = ["turbojpeg.dll", "libturbojpeg.dll"]
+        possible_roots = ["C:\\libjpeg-turbo64", "C:\\libjpeg-turbo", "C:\\Program Files\\libjpeg-turbo64"]
+        
+        jpeg = None
+        for root in possible_roots:
+            for name in possible_dll_names:
+                p = os.path.join(root, "bin", name)
+                if os.path.exists(p):
+                    try:
+                        jpeg = TurboJPEG(p)
+                        if jpeg: break
+                    except:
+                        continue
+            if jpeg: break
+        
+        if not jpeg:
+            raise RuntimeError("DLL_NOT_FOUND")
+
+    USE_TURBOJPEG = True
+    print("⚡ TurboJPEG: АКТИВЕН (максимальная скорость 60 FPS)")
+
+except ImportError as e:
+    # Ошибка: не установлен модуль в Python
+    missing_mod = str(e).split("'")[-2] if "'" in str(e) else "turbojpeg"
+    print(f"⚠️  TurboJPEG не активен: Не установлен Python-модуль '{missing_mod}'")
+    print(f"    Решение: Выполни команду в консоли:")
+    print(f"    python -m pip install PyTurboJPEG numpy")
+    print("    После этого перезапусти скрипт.")
+    print("    Сейчас работаем через Pillow 🐢 (около 15-20 FPS)")
+
+except Exception as e:
+    # Ошибка: модуль есть, но нет самой либы (DLL) в системе
+    if "DLL_NOT_FOUND" in str(e) or "library not found" in str(e).lower():
+        print("⚠️  TurboJPEG не активен: В системе не найден движок libjpeg-turbo (DLL).")
+        print("    Решение:")
+        print("    1. Проверь, что ты установил программу в C:\\libjpeg-turbo64")
+        print("    2. Проверь, что внутри C:\\libjpeg-turbo64\\bin есть файл turbojpeg.dll")
+    else:
+        print(f"⚠️  TurboJPEG не активен: {e}")
+    
+    print("    Сейчас работаем через Pillow 🐢 (около 15-20 FPS)")
 
 # ═══ НАСТРОЙКИ ═══
 HUB_URL = "https://web-production-0af6c.up.railway.app"
@@ -76,6 +109,10 @@ pyautogui.FAILSAFE = False
 control_allowed = True
 ws_connection = None
 held_modifiers = set()
+current_monitor = 1  # mss monitor index (1 = primary)
+
+# Сессионный пароль
+SESSION_PASSWORD = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
 
 # Пул потоков для захвата экрана (не блокирует event loop)
 capture_executor = ThreadPoolExecutor(max_workers=2)
@@ -85,12 +122,29 @@ def gen_code():
     return ''.join(random.choices(string.digits, k=6))
 
 
+def get_monitor_list():
+    """Возвращает список мониторов."""
+    with mss.mss() as sct:
+        monitors = []
+        for i, m in enumerate(sct.monitors):
+            if i == 0:  # skip 'all monitors' virtual
+                continue
+            monitors.append({
+                "index": i,
+                "width": m["width"],
+                "height": m["height"],
+                "left": m["left"],
+                "top": m["top"],
+            })
+        return monitors
+
+
 # ═══ Захват экрана (оптимизированный) ═══
 
 def capture_turbo():
     """Захват с TurboJPEG — максимальная скорость."""
     with mss.mss() as sct:
-        mon = sct.monitors[1]
+        mon = sct.monitors[current_monitor]
         shot = sct.grab(mon)
         # mss возвращает BGRA, turbojpeg может принять его напрямую
         raw = np.frombuffer(shot.raw, dtype=np.uint8).reshape(
@@ -115,7 +169,7 @@ def capture_turbo():
 def capture_pillow():
     """Захват с Pillow — медленнее, но универсальный."""
     with mss.mss() as sct:
-        mon = sct.monitors[1]
+        mon = sct.monitors[current_monitor]
         shot = sct.grab(mon)
         img = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
         if SCALE < 1:
@@ -139,9 +193,16 @@ def capture():
 
 def handle_cmd(data_str):
     """Выполняет команду управления от зрителя."""
-    global QUALITY, FPS, SCALE, current_profile
+    global QUALITY, FPS, SCALE, current_profile, current_monitor
     if not control_allowed:
-        return
+        # Разрешаем set_quality и set_monitor даже без контроля
+        try:
+            d = json.loads(data_str)
+            a = d.get("action")
+            if a not in ("set_quality", "set_monitor"):
+                return
+        except:
+            return
     try:
         d = json.loads(data_str)
         a = d.get("action")
@@ -187,7 +248,13 @@ def handle_cmd(data_str):
                 QUALITY = p["quality"]
                 SCALE = p["scale"]
                 FPS = p["fps"]
-                print(f"  📊 Качество: {profile.upper()} (Q={QUALITY}, Scale={SCALE}, FPS={FPS})")
+                print(f"\n  📊 Качество: {profile.upper()} (Q={QUALITY}, Scale={SCALE}, FPS={FPS})")
+        elif a == "set_monitor":
+            idx = d.get("index", 1)
+            with mss.mss() as sct:
+                if 1 <= idx < len(sct.monitors):
+                    current_monitor = idx
+                    print(f"\n  🖥️ Монитор: #{idx}")
     except:
         pass
 
@@ -252,12 +319,15 @@ async def run():
     code = gen_code()
     url = f"{HUB_URL}/ws/host?code={code}"
 
+    monitors = get_monitor_list()
     encoder = "TurboJPEG ⚡" if USE_TURBOJPEG else "Pillow 🐢"
     print()
     print("╔══════════════════════════════════════════════╗")
-    print("║         OrbDesk Host Agent v2                ║")
+    print("║         OrbDesk Host Agent v3                ║")
     print("╠══════════════════════════════════════════════╣")
     print(f"║   Код доступа:   {code}                        ║")
+    print(f"║   Пароль:        {SESSION_PASSWORD}                       ║")
+    print(f"║   Мониторов:     {len(monitors)}                          ║")
     print(f"║   Качество:      {current_profile.upper():10s}              ║")
     print(f"║   Целевой FPS:   {FPS:3d}                         ║")
     print(f"║   Энкодер:       {encoder:20s}    ║")
@@ -288,6 +358,10 @@ async def run():
                 print(f"✅ Подключено! Управление: {'✅ РАЗРЕШЕНО' if control_allowed else '🔒 ЗАПРЕЩЕНО'}")
                 print()
 
+                # Отправляем пароль и список мониторов хабу
+                await ws.send(json.dumps({"type": "set_password", "password": SESSION_PASSWORD}))
+                await ws.send(json.dumps({"type": "monitor_list", "monitors": monitors}))
+
                 async def receive():
                     try:
                         async for msg in ws:
@@ -307,33 +381,39 @@ async def run():
                 # ═══ Пайплайн: захват в потоке, отправка асинхронно ═══
                 frame_count = 0
                 fps_timer = time.time()
+                last_time = time.perf_counter()
 
                 try:
                     while True:
-                        t_start = time.time()
-
-                        # Захват + кодирование в отдельном потоке → не блокирует event loop
+                        # Захват + кодирование в отдельном потоке
                         frame = await loop.run_in_executor(capture_executor, capture)
 
                         # Отправка кадра
                         await ws.send(frame)
 
-                        # FPS-счётчик
+                        # FPS-счётчик (одна строка с \r чтобы не спамить)
                         frame_count += 1
-                        elapsed = time.time() - fps_timer
-                        if elapsed >= 3.0:
+                        now = time.time()
+                        elapsed = now - fps_timer
+                        if elapsed >= 1.0:
                             real_fps = frame_count / elapsed
                             size_kb = len(frame) / 1024
-                            print(f"  📈 {real_fps:.1f} FPS | {size_kb:.0f} KB/кадр | {current_profile.upper()}")
+                            sys.stdout.write(f"\r  📈 {real_fps:.1f} FPS | {size_kb:.0f} KB/кадр | {current_profile.upper()}   ")
+                            sys.stdout.flush()
                             frame_count = 0
-                            fps_timer = time.time()
+                            fps_timer = now
 
-                        # Точный тайминг для целевого FPS
-                        frame_time = time.time() - t_start
-                        target_time = 1.0 / FPS
-                        sleep_time = target_time - frame_time
+                        # Точный тайминг
+                        target_interval = 1.0 / FPS
+                        curr_time = time.perf_counter()
+                        work_time = curr_time - last_time
+                        sleep_time = target_interval - work_time
+                        
                         if sleep_time > 0:
-                            await asyncio.sleep(sleep_time)
+                            # Вычитаем 1-2мс на накладные расходы asyncio
+                            await asyncio.sleep(max(0, sleep_time - 0.001))
+                        
+                        last_time = time.perf_counter()
 
                 except:
                     recv.cancel()
@@ -351,8 +431,8 @@ async def run():
 
 if __name__ == "__main__":
     try:
-        if sys.platform == 'win32':
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        # Убрали принудительную установку WindowsSelectorEventLoopPolicy, 
+        # так как она устарела и вызывает предупреждения.
         asyncio.run(run())
     except KeyboardInterrupt:
         pass
