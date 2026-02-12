@@ -1,4 +1,7 @@
-// ═══ Элементы ═══
+// ═══════════════════════════════════════════════════════
+// Элементы
+// ═══════════════════════════════════════════════════════
+
 const pages = {
     landing: document.getElementById('landing-page'),
     host: document.getElementById('host-page'),
@@ -18,7 +21,11 @@ let ws = null;
 let sessionCode = '';
 let controlAllowed = false;
 
-// ═══ Навигация ═══
+
+// ═══════════════════════════════════════════════════════
+// Навигация
+// ═══════════════════════════════════════════════════════
+
 function showPage(name) {
     Object.values(pages).forEach(p => p.classList.remove('active'));
     pages[name].classList.add('active');
@@ -91,8 +98,31 @@ connectBtn.addEventListener('click', connectViewer);
 
 
 // ═══════════════════════════════════════════════════════
-// ПОДКЛЮЧЕНИЕ
+// FPS & Info
 // ═══════════════════════════════════════════════════════
+
+let frameCount = 0;
+let lastFpsUpdate = performance.now();
+let measuredFps = 0;
+
+function updateFpsCounter() {
+    frameCount++;
+    const now = performance.now();
+    if (now - lastFpsUpdate >= 1000) {
+        measuredFps = Math.round(frameCount * 1000 / (now - lastFpsUpdate));
+        frameCount = 0;
+        lastFpsUpdate = now;
+        const fpsEl = document.getElementById('info-fps');
+        if (fpsEl) fpsEl.textContent = measuredFps;
+    }
+}
+
+
+// ═══════════════════════════════════════════════════════
+// Подключение
+// ═══════════════════════════════════════════════════════
+
+let connectionTime = 0;
 
 async function connectViewer() {
     const code = getPinCode();
@@ -133,11 +163,14 @@ async function connectViewer() {
         loader.style.display = 'none';
         canvas.style.display = '';
         document.getElementById('session-status').textContent = 'В сети';
+        connectionTime = Date.now();
+        showToast('✅ Подключено!');
     };
 
     ws.onmessage = (e) => {
         if (e.data instanceof ArrayBuffer) {
             // Бинарный кадр экрана
+            updateFpsCounter();
             const blob = new Blob([e.data], { type: 'image/jpeg' });
             const url = URL.createObjectURL(blob);
             const img = new Image();
@@ -145,6 +178,9 @@ async function connectViewer() {
                 if (canvas.width !== img.width || canvas.height !== img.height) {
                     canvas.width = img.width;
                     canvas.height = img.height;
+                    // Обновляем разрешение в инфо
+                    const resEl = document.getElementById('info-resolution');
+                    if (resEl) resEl.textContent = `${img.width}×${img.height}`;
                 }
                 ctx.drawImage(img, 0, 0);
                 URL.revokeObjectURL(url);
@@ -157,6 +193,7 @@ async function connectViewer() {
                 if (msg.type === 'control_status') {
                     controlAllowed = msg.allowed;
                     updateControlBadge(msg.allowed);
+                    showToast(msg.allowed ? '🎮 Управление разрешено' : '👁️ Только просмотр');
                 }
             } catch { }
         }
@@ -178,7 +215,22 @@ async function connectViewer() {
         }
         connectBtn.disabled = false;
         connectBtn.textContent = 'Подключиться';
+        // Закрываем все оверлеи
+        closeAllOverlays();
     };
+
+    // Обновление задержки
+    setInterval(() => {
+        if (connectionTime && ws && ws.readyState === WebSocket.OPEN) {
+            const latencyEl = document.getElementById('info-latency');
+            if (latencyEl) {
+                const elapsed = Math.round((Date.now() - connectionTime) / 1000);
+                const min = Math.floor(elapsed / 60);
+                const sec = elapsed % 60;
+                latencyEl.textContent = min > 0 ? `${min}м ${sec}с` : `${sec}с`;
+            }
+        }
+    }, 1000);
 }
 
 function updateControlBadge(allowed) {
@@ -190,7 +242,9 @@ document.getElementById('close-session').addEventListener('click', () => {
     if (ws) ws.close();
     ws = null;
     sessionCode = '';
+    connectionTime = 0;
     showPage('landing');
+    closeAllOverlays();
 });
 
 
@@ -226,6 +280,13 @@ canvas.addEventListener('mousedown', (e) => {
     send({ action: 'click', ...coords(e), button: btn });
 });
 
+canvas.addEventListener('dblclick', (e) => {
+    if (!controlAllowed) return;
+    e.preventDefault();
+    const btn = 'left';
+    send({ action: 'dblclick', ...coords(e), button: btn });
+});
+
 canvas.addEventListener('wheel', (e) => {
     if (!controlAllowed) return;
     e.preventDefault();
@@ -234,8 +295,11 @@ canvas.addEventListener('wheel', (e) => {
 
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
+// Клавиатура — улучшенная обработка
 window.addEventListener('keydown', (e) => {
     if (!pages.remote.classList.contains('active') || !controlAllowed) return;
+    // Не перехватываем, если фокус в оверлее
+    if (e.target.closest('.overlay-panel')) return;
     if (['F5', 'r'].includes(e.key) && e.ctrlKey) return;
     e.preventDefault();
 
@@ -249,3 +313,154 @@ document.getElementById('fullscreen').addEventListener('click', () => {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen();
     else document.exitFullscreen();
 });
+
+
+// ═══════════════════════════════════════════════════════
+// OVERLAYS: Settings & System Keys
+// ═══════════════════════════════════════════════════════
+
+const settingsOverlay = document.getElementById('settings-overlay');
+const syskeysOverlay = document.getElementById('syskeys-overlay');
+const btnSettings = document.getElementById('btn-settings');
+const btnSyskeys = document.getElementById('btn-syskeys');
+
+function closeAllOverlays() {
+    settingsOverlay.classList.add('hidden');
+    syskeysOverlay.classList.add('hidden');
+    btnSettings.classList.remove('active');
+    btnSyskeys.classList.remove('active');
+}
+
+function toggleOverlay(overlay, btn) {
+    const isHidden = overlay.classList.contains('hidden');
+    closeAllOverlays();
+    if (isHidden) {
+        overlay.classList.remove('hidden');
+        btn.classList.add('active');
+    }
+}
+
+btnSettings.addEventListener('click', () => toggleOverlay(settingsOverlay, btnSettings));
+btnSyskeys.addEventListener('click', () => toggleOverlay(syskeysOverlay, btnSyskeys));
+
+// Закрытие по крестику
+document.querySelectorAll('.overlay-close').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const targetId = btn.dataset.close;
+        document.getElementById(targetId).classList.add('hidden');
+        btnSettings.classList.remove('active');
+        btnSyskeys.classList.remove('active');
+    });
+});
+
+// Закрытие по клику вне оверлея
+document.addEventListener('mousedown', (e) => {
+    if (!e.target.closest('.overlay-panel') &&
+        !e.target.closest('.nav-icon-btn')) {
+        closeAllOverlays();
+    }
+});
+
+
+// ═══ Quality Selector ═══
+const qualitySelector = document.getElementById('quality-selector');
+qualitySelector.addEventListener('click', (e) => {
+    const btn = e.target.closest('.q-btn');
+    if (!btn) return;
+    const quality = btn.dataset.quality;
+
+    // Обновляем UI
+    qualitySelector.querySelectorAll('.q-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    // Отправляем хосту через WebSocket
+    send({ action: 'set_quality', profile: quality });
+    showToast(`📊 Качество: ${{ 'low': 'Низкое', 'medium': 'Среднее', 'high': 'Высокое' }[quality]}`);
+});
+
+
+// ═══ System Keys ═══
+const heldModifiers = new Set();
+
+// Модификаторы (удержание)
+document.querySelectorAll('.modifier-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const mod = btn.dataset.mod;
+        if (heldModifiers.has(mod)) {
+            heldModifiers.delete(mod);
+            btn.classList.remove('held');
+            send({ action: 'keyup', key: mod });
+        } else {
+            heldModifiers.add(mod);
+            btn.classList.add('held');
+            send({ action: 'keydown', key: mod });
+        }
+    });
+});
+
+// Обычные клавиши
+document.querySelectorAll('.syskey-btn:not(.modifier-btn):not(.hotkey-btn)').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const key = btn.dataset.key;
+        if (!key) return;
+
+        // Если есть зажатые модификаторы — отправляем как hotkey
+        if (heldModifiers.size > 0) {
+            const keys = [...heldModifiers, key];
+            send({ action: 'hotkey', keys });
+            // Отпускаем модификаторы
+            releaseAllModifiers();
+        } else {
+            send({ action: 'key', key });
+        }
+
+        // Визуальная обратная связь
+        btn.style.transform = 'scale(0.9)';
+        setTimeout(() => btn.style.transform = '', 150);
+    });
+});
+
+// Готовые комбинации
+document.querySelectorAll('.hotkey-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const hotkey = btn.dataset.hotkey;
+        if (!hotkey) return;
+        const keys = hotkey.split(',');
+        send({ action: 'hotkey', keys });
+
+        // Визуальная обратная связь
+        btn.style.transform = 'scale(0.9)';
+        setTimeout(() => btn.style.transform = '', 150);
+    });
+});
+
+function releaseAllModifiers() {
+    heldModifiers.forEach(mod => {
+        send({ action: 'keyup', key: mod });
+    });
+    heldModifiers.clear();
+    document.querySelectorAll('.modifier-btn').forEach(b => b.classList.remove('held'));
+}
+
+
+// ═══════════════════════════════════════════════════════
+// Toast
+// ═══════════════════════════════════════════════════════
+
+let toastTimeout = null;
+
+function showToast(message) {
+    let toast = document.querySelector('.toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('show');
+
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+    }, 2500);
+}

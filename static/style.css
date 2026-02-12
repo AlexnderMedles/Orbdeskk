@@ -196,6 +196,7 @@ body {
     font-size: 14px;
     cursor: pointer;
     font-family: inherit;
+    transition: color 0.2s;
 }
 
 .back-btn:hover {
@@ -448,7 +449,9 @@ body {
     cursor: not-allowed;
 }
 
+/* ═══════════════════════════════════════════════════════ */
 /* Remote Page */
+/* ═══════════════════════════════════════════════════════ */
 #remote-page {
     flex-direction: column;
     background: #000;
@@ -459,14 +462,15 @@ body {
     top: 0;
     left: 0;
     right: 0;
-    padding: 12px 24px;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(12px);
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(16px);
     display: flex;
     justify-content: space-between;
     align-items: center;
     z-index: 100;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    transition: opacity 0.3s;
 }
 
 .logo-small {
@@ -477,7 +481,34 @@ body {
 .nav-controls {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+}
+
+.nav-icon-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text);
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.25s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-icon-btn:hover {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: var(--accent);
+    transform: scale(1.08);
+}
+
+.nav-icon-btn.active {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
 }
 
 .control-badge {
@@ -606,7 +637,293 @@ body {
     background: rgba(255, 255, 255, 0.1);
 }
 
+
+/* ═══════════════════════════════════════════════════════ */
+/* Overlay Panels (Settings, System Keys) */
+/* ═══════════════════════════════════════════════════════ */
+
+.overlay-panel {
+    position: absolute;
+    top: 56px;
+    right: 16px;
+    z-index: 200;
+    animation: overlaySlide 0.3s ease;
+}
+
+.overlay-panel.hidden {
+    display: none;
+}
+
+@keyframes overlaySlide {
+    from {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.overlay-glass {
+    background: rgba(10, 15, 30, 0.92);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 20px;
+    min-width: 320px;
+    box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.syskeys-glass {
+    min-width: 380px;
+}
+
+.overlay-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.overlay-header h3 {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.overlay-close {
+    background: rgba(255, 255, 255, 0.06);
+    border: none;
+    color: var(--text-dim);
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.overlay-close:hover {
+    background: rgba(244, 63, 94, 0.2);
+    color: var(--danger);
+}
+
+
+/* ═══ Settings: Quality ═══ */
+.setting-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    text-align: left;
+}
+
+.quality-selector {
+    display: flex;
+    gap: 8px;
+}
+
+.q-btn {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 12px 8px;
+    cursor: pointer;
+    color: var(--text);
+    text-align: center;
+    transition: all 0.25s;
+    font-family: inherit;
+}
+
+.q-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    transform: translateY(-2px);
+}
+
+.q-btn.active {
+    background: rgba(56, 189, 248, 0.1);
+    border-color: var(--accent);
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.1);
+}
+
+.q-icon {
+    display: block;
+    font-size: 18px;
+    margin-bottom: 4px;
+}
+
+.q-name {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.q-desc {
+    display: block;
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+
+/* ═══ Settings: Info Grid ═══ */
+.info-grid {
+    display: flex;
+    gap: 8px;
+}
+
+.info-cell {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 10px 8px;
+    text-align: center;
+}
+
+.info-value {
+    display: block;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 2px;
+}
+
+.info-label {
+    display: block;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+
+/* ═══ System Keys ═══ */
+.syskeys-section {
+    margin-bottom: 14px;
+}
+
+.syskeys-section:last-child {
+    margin-bottom: 0;
+}
+
+.syskeys-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    text-align: left;
+}
+
+.syskeys-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.syskey-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.syskey-btn:hover {
+    background: rgba(56, 189, 248, 0.12);
+    border-color: var(--accent);
+    transform: scale(1.05);
+}
+
+.syskey-btn:active {
+    transform: scale(0.95);
+    background: rgba(56, 189, 248, 0.25);
+}
+
+.syskey-btn.modifier-btn {
+    min-width: 52px;
+    text-align: center;
+}
+
+.syskey-btn.modifier-btn.held {
+    background: rgba(56, 189, 248, 0.25);
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+}
+
+.syskey-btn.hotkey-btn {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.15);
+}
+
+.syskey-btn.hotkey-btn:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.syskey-btn.hotkey-btn:active {
+    background: rgba(99, 102, 241, 0.35);
+}
+
+
+/* ═══════════════════════════════════════════════════════ */
+/* Toast Notification */
+/* ═══════════════════════════════════════════════════════ */
+.toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(10, 15, 30, 0.92);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: 14px;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+
+/* ═══════════════════════════════════════════════════════ */
 /* Responsive */
+/* ═══════════════════════════════════════════════════════ */
 @media (max-width: 520px) {
     .glass-card {
         padding: 32px 20px;
@@ -630,5 +947,20 @@ body {
 
     .agent-features {
         flex-direction: column;
+    }
+
+    .overlay-panel {
+        right: 8px;
+        left: 8px;
+    }
+
+    .overlay-glass,
+    .syskeys-glass {
+        min-width: unset;
+    }
+
+    .syskey-btn {
+        font-size: 10px;
+        padding: 6px 8px;
     }
 }
