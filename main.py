@@ -54,6 +54,8 @@ async def create_session():
         "metrics_history": [],   # последние 60 точек CPU/RAM
         "last_metrics": None,
         "next_color_idx": 0,
+        "privacy_shield": False,
+        "audit_log": [],         # журнал событий
     }
     return {"code": code}
 
@@ -70,18 +72,15 @@ async def check_session(code: str = Query("")):
     return {"online": False}
 
 # 🔗 ПРЯМАЯ ССЫЛКА НА СКАЧИВАНИЕ (GitHub Releases)
-# Вставь сюда ссылку на свой .exe после того как создашь релиз на GitHub
 HOST_DOWNLOAD_URL = "https://github.com/AlexnderMedles/Orbdeskk/releases/download/v4.0/OrbDesk_Host.exe" 
 
 @app.get("/download/host")
 async def download_host():
     """Отдаёт .exe (через редирект или локально) или ZIP."""
-    # 1. Если настроена внешняя ссылка — перенаправляем туда
     if HOST_DOWNLOAD_URL.startswith("http"):
         from fastapi.responses import RedirectResponse
         return RedirectResponse(HOST_DOWNLOAD_URL)
 
-    # 2. Иначе ищем локально в корне или в dist/
     exe_path = "OrbDesk_Host.exe"
     if not os.path.exists(exe_path):
         exe_path = os.path.join("dist", "OrbDesk_Host.exe")
@@ -128,6 +127,9 @@ async def upload_file(code: str, file: UploadFile = File(...)):
         f.write(content)
 
     size_kb = len(content) / 1024
+
+    # Аудит
+    add_audit(s, "file_upload", f"Файл: {safe_name} ({round(size_kb, 1)} KB)")
 
     # Уведомляем хоста о файле
     try:
@@ -221,6 +223,28 @@ async def dashboard_kick(request: Request):
 
 
 # ═══════════════════════════════════════════════════════
+# Audit Log Helper
+# ═══════════════════════════════════════════════════════
+
+def add_audit(session, event_type, detail=""):
+    entry = {
+        "type": event_type,
+        "detail": detail,
+        "time": time.time(),
+    }
+    session["audit_log"].append(entry)
+    if len(session["audit_log"]) > 200:
+        session["audit_log"] = session["audit_log"][-100:]
+    # Рассылаем всем зрителям
+    msg = json.dumps({"type": "audit_event", **entry})
+    for v in session["viewers"]:
+        try:
+            asyncio.ensure_future(v.send_text(msg))
+        except:
+            pass
+
+
+# ═══════════════════════════════════════════════════════
 # WebSocket: Хост-агент
 # ═══════════════════════════════════════════════════════
 
@@ -235,7 +259,8 @@ async def ws_host(ws: WebSocket, code: str = Query("")):
             "control_allowed": True, "password": None,
             "chat_history": [], "monitors": [],
             "metrics_history": [], "last_metrics": None,
-            "next_color_idx": 0,
+            "next_color_idx": 0, "privacy_shield": False,
+            "audit_log": [],
         }
     if sessions[code]["host"]:
         await ws.close(code=4003, reason="Already connected")
@@ -244,12 +269,16 @@ async def ws_host(ws: WebSocket, code: str = Query("")):
     await ws.accept()
     sessions[code]["host"] = ws
     print(f"[Hub] Host ON: {code}")
+    add_audit(sessions[code], "host_connect", "Хост подключился")
 
     try:
         while True:
             data = await ws.receive()
             if "bytes" in data:
                 frame = data["bytes"]
+                # Если Privacy Shield активен, не отправляем кадры
+                if sessions[code].get("privacy_shield"):
+                    continue
                 viewers = sessions[code]["viewers"]
                 if viewers:
                     async def _send(v):
@@ -270,6 +299,8 @@ async def ws_host(ws: WebSocket, code: str = Query("")):
 
                 if t == "control_toggle":
                     sessions[code]["control_allowed"] = msg["allowed"]
+                    add_audit(sessions[code], "control_toggle",
+                              "Разрешено" if msg["allowed"] else "Запрещено")
                     for v in sessions[code]["viewers"]:
                         try:
                             await v.send_text(json.dumps({
@@ -279,6 +310,7 @@ async def ws_host(ws: WebSocket, code: str = Query("")):
                         except: pass
 
                 elif t == "kick":
+                    add_audit(sessions[code], "kick", "Все зрители выгнаны")
                     for v in list(sessions[code]["viewers"]):
                         try:
                             await v.close(code=4020, reason="Kicked")
@@ -307,14 +339,12 @@ async def ws_host(ws: WebSocket, code: str = Query("")):
                         except: pass
 
                 elif t == "clipboard_sync":
-                    # Хост отправил содержимое буфера → рассылаем зрителям
                     for v in sessions[code]["viewers"]:
                         try:
                             await v.send_text(json.dumps(msg))
                         except: pass
 
                 elif t == "system_metrics":
-                    # CPU/RAM метрики от хоста
                     sessions[code]["last_metrics"] = msg
                     hist = sessions[code]["metrics_history"]
                     hist.append(msg)
@@ -322,7 +352,35 @@ async def ws_host(ws: WebSocket, code: str = Query("")):
                         sessions[code]["metrics_history"] = hist[-60:]
 
                 elif t == "screenshot_result":
-                    # Скриншот по запросу Quick Action → зрителям
+                    for v in sessions[code]["viewers"]:
+                        try:
+                            await v.send_text(json.dumps(msg))
+                        except: pass
+
+                elif t == "privacy_shield":
+                    sessions[code]["privacy_shield"] = msg.get("enabled", False)
+                    add_audit(sessions[code], "privacy_shield",
+                              "Включён" if msg.get("enabled") else "Выключен")
+                    for v in sessions[code]["viewers"]:
+                        try:
+                            await v.send_text(json.dumps(msg))
+                        except: pass
+
+                # ═══ Process List (Task Manager Pro) ═══
+                elif t == "process_list":
+                    for v in sessions[code]["viewers"]:
+                        try:
+                            await v.send_text(json.dumps(msg))
+                        except: pass
+
+                # ═══ OrbExplorer: file browser response ═══
+                elif t == "browse_result":
+                    for v in sessions[code]["viewers"]:
+                        try:
+                            await v.send_text(json.dumps(msg))
+                        except: pass
+
+                elif t == "file_chunk":
                     for v in sessions[code]["viewers"]:
                         try:
                             await v.send_text(json.dumps(msg))
@@ -332,6 +390,7 @@ async def ws_host(ws: WebSocket, code: str = Query("")):
         pass
     finally:
         if code in sessions:
+            add_audit(sessions[code], "host_disconnect", "Хост отключился")
             for v in sessions[code]["viewers"]:
                 try:
                     await v.close(code=4010, reason="Host left")
@@ -349,7 +408,7 @@ async def ws_host(ws: WebSocket, code: str = Query("")):
 # ═══════════════════════════════════════════════════════
 
 @app.websocket("/ws/viewer")
-async def ws_viewer(ws: WebSocket, code: str = Query(""), password: str = Query("")):
+async def ws_viewer(ws: WebSocket, code: str = Query(""), password: str = Query(""), name: str = Query("Viewer")):
     s = sessions.get(code)
     if not s or not s["host"]:
         await ws.close(code=4001, reason="Offline")
@@ -370,17 +429,20 @@ async def ws_viewer(ws: WebSocket, code: str = Query(""), password: str = Query(
     color_idx = s["next_color_idx"] % len(CURSOR_COLORS)
     s["next_color_idx"] += 1
     viewer_color = CURSOR_COLORS[color_idx]
-    s["viewer_meta"][ws] = {"id": viewer_id, "color": viewer_color}
+    viewer_name = name[:20] if name else "Viewer"
+    s["viewer_meta"][ws] = {"id": viewer_id, "color": viewer_color, "name": viewer_name}
 
     cnt = len(s["viewers"])
-    print(f"[Hub] Viewer+ {code} ({cnt}) id={viewer_id}")
+    print(f"[Hub] Viewer+ {code} ({cnt}) id={viewer_id} name={viewer_name}")
+    add_audit(s, "viewer_connect", f"{viewer_name} подключился")
 
-    # Отправляем viewer_id и цвет новому зрителю
+    # Отправляем viewer_id, цвет и имя новому зрителю
     try:
         await ws.send_text(json.dumps({
             "type": "viewer_identity",
             "viewer_id": viewer_id,
             "color": viewer_color,
+            "name": viewer_name,
         }))
     except: pass
 
@@ -401,6 +463,24 @@ async def ws_viewer(ws: WebSocket, code: str = Query(""), password: str = Query(
             }))
         except: pass
 
+    # Отправляем статус Privacy Shield
+    if s.get("privacy_shield"):
+        try:
+            await ws.send_text(json.dumps({
+                "type": "privacy_shield",
+                "enabled": True
+            }))
+        except: pass
+
+    # Отправляем историю аудит-лога
+    if s.get("audit_log"):
+        try:
+            await ws.send_text(json.dumps({
+                "type": "audit_history",
+                "events": s["audit_log"][-50:]
+            }))
+        except: pass
+
     # Уведомляем хоста о кол-ве зрителей
     try:
         await s["host"].send_text(json.dumps({
@@ -416,6 +496,7 @@ async def ws_viewer(ws: WebSocket, code: str = Query(""), password: str = Query(
 
             if t == "chat":
                 msg["from"] = "viewer"
+                msg["viewer_name"] = viewer_name
                 s["chat_history"].append(msg)
                 if len(s["chat_history"]) > 100:
                     s["chat_history"] = s["chat_history"][-50:]
@@ -443,10 +524,11 @@ async def ws_viewer(ws: WebSocket, code: str = Query(""), password: str = Query(
                         except: pass
 
             elif t == "cursor_pos":
-                # Ghost Cursors — рассылаем другим зрителям
+                # Ghost Cursors — рассылаем другим зрителям с именем
                 meta = s["viewer_meta"].get(ws, {})
                 msg["viewer_id"] = meta.get("id", "?")
                 msg["color"] = meta.get("color", "#fff")
+                msg["name"] = meta.get("name", "Viewer")
                 out = json.dumps(msg)
                 for v in s["viewers"]:
                     if v != ws:
@@ -455,7 +537,36 @@ async def ws_viewer(ws: WebSocket, code: str = Query(""), password: str = Query(
                         except: pass
 
             elif t == "clipboard_sync":
-                # Зритель отправил текст из буфера → хосту
+                try:
+                    await s["host"].send_text(json.dumps(msg))
+                except: pass
+
+            # ═══ OrbExplorer: browse request ═══
+            elif t == "browse_dir":
+                try:
+                    await s["host"].send_text(json.dumps(msg))
+                except: pass
+
+            elif t == "download_remote_file":
+                try:
+                    await s["host"].send_text(json.dumps(msg))
+                except: pass
+
+            # ═══ Task Manager Pro ═══
+            elif t == "request_processes":
+                try:
+                    await s["host"].send_text(json.dumps(msg))
+                except: pass
+
+            elif t == "kill_process":
+                if s.get("control_allowed", False):
+                    add_audit(s, "kill_process", f"PID: {msg.get('pid', '?')}")
+                    try:
+                        await s["host"].send_text(json.dumps(msg))
+                    except: pass
+
+            # ═══ Privacy Shield (viewer request) ═══
+            elif t == "privacy_shield":
                 try:
                     await s["host"].send_text(json.dumps(msg))
                 except: pass
@@ -477,6 +588,7 @@ async def ws_viewer(ws: WebSocket, code: str = Query(""), password: str = Query(
             sessions[code]["viewer_meta"].pop(ws, None)
             cnt = len(sessions[code]["viewers"])
             print(f"[Hub] Viewer- {code} ({cnt})")
+            add_audit(sessions[code], "viewer_disconnect", f"{viewer_name} отключился")
             # Сообщаем другим зрителям что этот курсор ушёл
             for v in sessions[code]["viewers"]:
                 try:

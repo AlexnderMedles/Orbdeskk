@@ -9,7 +9,9 @@
         content="OrbDesk — удалённый рабочий стол прямо из браузера. Быстро, безопасно, с полным управлением.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -56,6 +58,9 @@
                 <div class="feature-item"><span class="icon">📁</span>
                     <p>Файлы</p>
                 </div>
+                <div class="feature-item"><span class="icon">🎙️</span>
+                    <p>Голос</p>
+                </div>
             </div>
         </div>
     </div>
@@ -82,6 +87,7 @@
                 <div class="agent-features">
                     <div class="af-item">🔒 <strong>C</strong> — вкл/выкл управление</div>
                     <div class="af-item">👢 <strong>K</strong> — выгнать зрителя</div>
+                    <div class="af-item">🛡️ <strong>P</strong> — Privacy Shield</div>
                     <div class="af-item">❌ <strong>Q</strong> — завершить</div>
                 </div>
             </div>
@@ -119,6 +125,13 @@
                         autocomplete="off" maxlength="10">
                 </div>
 
+                <!-- Имя зрителя -->
+                <div class="name-section">
+                    <p class="password-label">👤 Ваше имя (видно другим)</p>
+                    <input type="text" id="viewer-name" class="password-input" placeholder="Viewer" autocomplete="off"
+                        maxlength="20" value="">
+                </div>
+
                 <p id="pin-error" class="pin-error"></p>
 
                 <button id="connect-btn" class="primary-btn" disabled>
@@ -147,6 +160,10 @@
                 <button id="btn-clipboard" class="nav-icon-btn" title="Буфер обмена">📋</button>
                 <button id="btn-draw" class="nav-icon-btn" title="Рисование">✏️</button>
                 <button id="btn-chat" class="nav-icon-btn" title="Чат">💬</button>
+                <button id="btn-explorer" class="nav-icon-btn" title="Проводник">📂</button>
+                <button id="btn-taskmgr" class="nav-icon-btn" title="Диспетчер процессов">📊</button>
+                <button id="btn-audit" class="nav-icon-btn" title="Журнал событий">📜</button>
+                <button id="btn-privacy" class="nav-icon-btn" title="Privacy Shield">🛡️</button>
                 <button id="btn-record" class="nav-icon-btn" title="Запись сессии">⏺</button>
                 <button id="close-session" class="close-btn" title="Отключиться">✕</button>
             </div>
@@ -156,6 +173,16 @@
             <canvas id="screen-canvas"></canvas>
             <canvas id="draw-canvas"></canvas>
             <div id="ghost-cursors-layer" class="ghost-cursors-layer"></div>
+
+            <!-- Privacy Shield Overlay -->
+            <div id="privacy-shield-overlay" class="privacy-shield-overlay hidden">
+                <div class="privacy-shield-content">
+                    <div class="privacy-shield-icon">🛡️</div>
+                    <h3>Privacy Shield</h3>
+                    <p>Хост скрыл экран</p>
+                    <div class="privacy-pulse"></div>
+                </div>
+            </div>
 
             <!-- Drop Zone Overlay -->
             <div id="drop-overlay" class="drop-overlay hidden">
@@ -218,6 +245,15 @@
                             <span class="info-value" id="info-resolution">—</span>
                             <span class="info-label">Разрешение</span>
                         </div>
+                    </div>
+
+                    <label class="setting-label" style="margin-top: 18px;">Звуки</label>
+                    <div class="sound-toggle">
+                        <button id="btn-sound-toggle" class="q-btn active" data-sound="on">
+                            <span class="q-icon">🔊</span>
+                            <span class="q-name">Звуковые уведомления</span>
+                            <span class="q-desc" id="sound-status">Вкл</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -343,8 +379,65 @@
             </div>
         </div>
 
+        <!-- ═══ OrbExplorer Overlay ═══ -->
+        <div id="explorer-overlay" class="overlay-panel hidden">
+            <div class="overlay-glass explorer-glass">
+                <div class="overlay-header">
+                    <h3>📂 OrbExplorer</h3>
+                    <button class="overlay-close" data-close="explorer-overlay">✕</button>
+                </div>
+                <div class="explorer-breadcrumb" id="explorer-breadcrumb"></div>
+                <div class="explorer-list" id="explorer-list">
+                    <div class="explorer-empty">Нажмите чтобы открыть проводник...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ Task Manager Pro Overlay ═══ -->
+        <div id="taskmgr-overlay" class="overlay-panel hidden">
+            <div class="overlay-glass taskmgr-glass">
+                <div class="overlay-header">
+                    <h3>📊 Процессы</h3>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <button id="taskmgr-refresh" class="overlay-close" title="Обновить"
+                            style="color:var(--accent);">↻</button>
+                        <button class="overlay-close" data-close="taskmgr-overlay">✕</button>
+                    </div>
+                </div>
+                <div class="taskmgr-header-row">
+                    <span class="tm-col-name">Процесс</span>
+                    <span class="tm-col-cpu">CPU</span>
+                    <span class="tm-col-ram">RAM</span>
+                    <span class="tm-col-action"></span>
+                </div>
+                <div class="taskmgr-list" id="taskmgr-list">
+                    <div class="explorer-empty">Загрузка...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ Audit Log Overlay ═══ -->
+        <div id="audit-overlay" class="overlay-panel hidden">
+            <div class="overlay-glass audit-glass">
+                <div class="overlay-header">
+                    <h3>📜 Журнал событий</h3>
+                    <button class="overlay-close" data-close="audit-overlay">✕</button>
+                </div>
+                <div class="audit-list" id="audit-list">
+                    <div class="explorer-empty">Нет событий</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Draw Toolbar -->
         <div id="draw-toolbar" class="draw-toolbar hidden">
+            <div class="draw-tools">
+                <button class="draw-tool-btn active" data-tool="pen" title="Кисть">✏️</button>
+                <button class="draw-tool-btn" data-tool="arrow" title="Стрелка">➜</button>
+                <button class="draw-tool-btn" data-tool="rect" title="Прямоугольник">▭</button>
+                <button class="draw-tool-btn" data-tool="sticky" title="Стикер">📝</button>
+            </div>
+            <div class="draw-sep"></div>
             <div class="draw-colors">
                 <button class="draw-color active" data-color="#ff4444" style="background:#ff4444;"></button>
                 <button class="draw-color" data-color="#44ff44" style="background:#44ff44;"></button>
