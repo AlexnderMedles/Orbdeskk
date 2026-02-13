@@ -71,7 +71,7 @@ async def check_session(code: str = Query("")):
 
 # 🔗 ПРЯМАЯ ССЫЛКА НА СКАЧИВАНИЕ (GitHub Releases)
 # Вставь сюда ссылку на свой .exe после того как создашь релиз на GitHub
-HOST_DOWNLOAD_URL = "" 
+HOST_DOWNLOAD_URL = "https://github.com/AlexnderMedles/Orbdeskk/releases/download/v4.0/OrbDesk_Host.exe" 
 
 @app.get("/download/host")
 async def download_host():
