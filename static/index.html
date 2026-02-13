@@ -53,6 +53,9 @@
                 <div class="feature-item"><span class="icon">🎮</span>
                     <p>Управление</p>
                 </div>
+                <div class="feature-item"><span class="icon">📁</span>
+                    <p>Файлы</p>
+                </div>
             </div>
         </div>
     </div>
@@ -64,17 +67,16 @@
             <div class="host-content">
                 <div class="share-icon-large">🖥️</div>
                 <h2>Дать доступ к ПК</h2>
-                <p class="host-subtitle">Скачайте и запустите маленький файл — он сгенерирует код для подключения</p>
+                <p class="host-subtitle">Скачайте и запустите — код для подключения появится автоматически</p>
 
-                <a href="/download/agent" class="primary-btn download-btn" download>
+                <a href="/download/host" class="primary-btn download-btn">
                     ⬇️ Скачать OrbDesk Agent
                 </a>
 
                 <div class="steps-mini">
-                    <p>1. Скачайте файл <code>orbdesk_host.py</code></p>
-                    <p>2. Установите: <code>pip install mss pyautogui Pillow websockets</code></p>
-                    <p>3. Запустите: <code>python orbdesk_host.py</code></p>
-                    <p>4. Код и пароль появятся в терминале — сообщите их другу</p>
+                    <p>1. Скачайте файл</p>
+                    <p>2. <strong>Запустите</strong> его — всё установится автоматически</p>
+                    <p>3. Код и пароль появятся в окне — скажите их другу</p>
                 </div>
 
                 <div class="agent-features">
@@ -111,7 +113,6 @@
                         autocomplete="off">
                 </div>
 
-                <!-- Поле пароля (показывается если сессия защищена) -->
                 <div id="password-section" class="password-section hidden">
                     <p class="password-label">🔒 Введите пароль сеанса</p>
                     <input type="text" id="session-password" class="password-input" placeholder="Пароль"
@@ -129,22 +130,42 @@
 
     <!-- ═══ Экран 4: Удалённый рабочий стол ═══ -->
     <div id="remote-page" class="page">
-        <div class="glass-nav">
-            <div class="logo-small">Orb<span class="accent">Desk</span></div>
+        <div class="glass-nav" id="glass-nav">
+            <div class="nav-left">
+                <div class="logo-small">Orb<span class="accent">Desk</span></div>
+                <div id="connection-indicator" class="connection-indicator good">
+                    <span class="ci-dot"></span>
+                    <span class="ci-text" id="ci-text">Отлично</span>
+                </div>
+            </div>
             <div class="nav-controls">
                 <span id="control-badge" class="control-badge allowed">🎮 Управление</span>
                 <span id="session-status" class="session-status">Подключение...</span>
                 <button id="btn-settings" class="nav-icon-btn" title="Настройки">⚙️</button>
                 <button id="btn-syskeys" class="nav-icon-btn" title="Системные клавиши">⌨️</button>
+                <button id="btn-quickactions" class="nav-icon-btn" title="Быстрые действия">⚡</button>
+                <button id="btn-clipboard" class="nav-icon-btn" title="Буфер обмена">📋</button>
                 <button id="btn-draw" class="nav-icon-btn" title="Рисование">✏️</button>
                 <button id="btn-chat" class="nav-icon-btn" title="Чат">💬</button>
+                <button id="btn-record" class="nav-icon-btn" title="Запись сессии">⏺</button>
                 <button id="close-session" class="close-btn" title="Отключиться">✕</button>
             </div>
         </div>
 
-        <div class="viewport-container">
+        <div class="viewport-container" id="viewport-container">
             <canvas id="screen-canvas"></canvas>
             <canvas id="draw-canvas"></canvas>
+            <div id="ghost-cursors-layer" class="ghost-cursors-layer"></div>
+
+            <!-- Drop Zone Overlay -->
+            <div id="drop-overlay" class="drop-overlay hidden">
+                <div class="drop-content">
+                    <div class="drop-icon">📁</div>
+                    <p class="drop-text">Отпустите файл для отправки</p>
+                    <div class="drop-ring"></div>
+                </div>
+            </div>
+
             <div class="loader" id="loader">
                 <div class="loader-spinner"></div>
                 <p>Загрузка экрана...</p>
@@ -178,7 +199,6 @@
                         </button>
                     </div>
 
-                    <!-- Мониторы -->
                     <label class="setting-label" style="margin-top: 18px;">Монитор</label>
                     <div id="monitor-selector" class="monitor-selector">
                         <span class="monitor-info">Обнаружение...</span>
@@ -271,6 +291,42 @@
             </div>
         </div>
 
+        <!-- Quick Actions Overlay -->
+        <div id="quickactions-overlay" class="overlay-panel hidden">
+            <div class="overlay-glass qa-glass">
+                <div class="overlay-header">
+                    <h3>⚡ Быстрые действия</h3>
+                    <button class="overlay-close" data-close="quickactions-overlay">✕</button>
+                </div>
+                <div class="qa-grid">
+                    <button class="qa-btn" data-quick="minimize_all">
+                        <span class="qa-icon">🗕</span>
+                        <span class="qa-label">Свернуть всё</span>
+                    </button>
+                    <button class="qa-btn" data-quick="show_desktop">
+                        <span class="qa-icon">🖥️</span>
+                        <span class="qa-label">Рабочий стол</span>
+                    </button>
+                    <button class="qa-btn" data-quick="task_manager">
+                        <span class="qa-icon">📊</span>
+                        <span class="qa-label">Диспетчер задач</span>
+                    </button>
+                    <button class="qa-btn" data-quick="open_explorer">
+                        <span class="qa-icon">📁</span>
+                        <span class="qa-label">Проводник</span>
+                    </button>
+                    <button class="qa-btn" data-quick="screenshot">
+                        <span class="qa-icon">📸</span>
+                        <span class="qa-label">Скриншот</span>
+                    </button>
+                    <button class="qa-btn qa-btn-danger" data-quick="lock_screen">
+                        <span class="qa-icon">🔒</span>
+                        <span class="qa-label">Блокировка</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Chat Overlay -->
         <div id="chat-overlay" class="overlay-panel chat-panel hidden">
             <div class="overlay-glass chat-glass">
@@ -306,6 +362,19 @@
 
         <div class="floating-toolbar">
             <button id="fullscreen" title="На весь экран">⛶</button>
+            <button id="btn-focus" title="Focus Mode">👁️</button>
+        </div>
+    </div>
+
+    <!-- Screenshot Modal -->
+    <div id="screenshot-modal" class="screenshot-modal hidden">
+        <div class="screenshot-content">
+            <div class="screenshot-header">
+                <h3>📸 Скриншот</h3>
+                <button class="overlay-close" id="screenshot-close">✕</button>
+            </div>
+            <img id="screenshot-img" class="screenshot-img" alt="Screenshot">
+            <a id="screenshot-download" class="primary-btn download-btn" download="screenshot.png">⬇️ Скачать</a>
         </div>
     </div>
 

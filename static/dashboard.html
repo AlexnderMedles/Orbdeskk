@@ -4,21 +4,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OrbDesk | Dashboard</title>
+    <title>OrbDesk Dashboard 2.0</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #020617;
-            --accent: #38bdf8;
-            --accent-hover: #0ea5e9;
-            --glass: rgba(255, 255, 255, 0.03);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --text: #e2e8f0;
-            --text-dim: rgba(255, 255, 255, 0.45);
-            --success: #4ade80;
-            --danger: #f43f5e;
+            --bg: #0a0e1a;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.07);
+            --accent: #6c63ff;
+            --accent-glow: rgba(108, 99, 255, 0.35);
+            --neon-green: #10b981;
+            --neon-cyan: #06b6d4;
+            --neon-orange: #f59e0b;
+            --neon-red: #ef4444;
+            --text: #e0e0e0;
+            --text-muted: #6b7095;
+            --text-bright: #ffffff;
+            --radius: 16px;
+            --font: 'Inter', sans-serif;
         }
 
         * {
@@ -28,360 +33,598 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font);
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
-            padding: 40px 20px;
+            padding: 24px;
+            overflow-y: auto;
         }
 
-        .container {
-            max-width: 600px;
+        .dashboard {
+            max-width: 900px;
             margin: 0 auto;
         }
 
         .header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .logo {
-            font-size: 28px;
-            font-weight: 900;
-        }
-
-        .logo .accent {
-            color: var(--accent);
-        }
-
-        .subtitle {
-            color: var(--text-dim);
-            font-size: 14px;
-            margin-top: 6px;
-        }
-
-        /* Enter Code */
-        .code-entry {
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 32px;
-            text-align: center;
-            margin-bottom: 24px;
-        }
-
-        .code-entry label {
-            display: block;
-            font-size: 13px;
-            color: var(--text-dim);
-            margin-bottom: 12px;
-        }
-
-        .code-input {
-            width: 200px;
-            padding: 14px;
-            font-family: 'Inter', sans-serif;
-            font-size: 24px;
-            font-weight: 900;
-            text-align: center;
-            letter-spacing: 8px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 2px solid var(--glass-border);
-            border-radius: 14px;
-            color: var(--accent);
-            outline: none;
-            caret-color: var(--accent);
-            transition: all 0.25s;
-        }
-
-        .code-input:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 24px rgba(56, 189, 248, 0.15);
-        }
-
-        .load-btn {
-            display: inline-block;
-            margin-top: 16px;
-            padding: 12px 32px;
-            background: var(--accent);
-            color: #000;
-            font-family: 'Inter', sans-serif;
-            font-size: 14px;
-            font-weight: 700;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .load-btn:hover {
-            background: var(--accent-hover);
-            transform: scale(1.04);
-        }
-
-        /* Dashboard Card */
-        .dashboard-card {
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 32px;
-            display: none;
-        }
-
-        .dashboard-card.active {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-6px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .dash-row {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 14px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            justify-content: space-between;
+            margin-bottom: 28px;
         }
 
-        .dash-row:last-child {
-            border-bottom: none;
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: var(--text-bright);
         }
 
-        .dash-label {
-            font-size: 13px;
-            color: var(--text-dim);
+        .header h1 span {
+            color: var(--accent);
         }
 
-        .dash-value {
-            font-size: 15px;
+        .status-badge {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.78rem;
             font-weight: 700;
         }
 
         .status-online {
-            color: var(--success);
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--neon-green);
+            border: 1px solid rgba(16, 185, 129, 0.2);
         }
 
         .status-offline {
-            color: var(--danger);
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--neon-red);
+            border: 1px solid rgba(239, 68, 68, 0.2);
         }
 
-        .dash-actions {
+        /* ═══ Code Input ═══ */
+        .code-section {
             display: flex;
+            align-items: center;
             gap: 12px;
-            margin-top: 24px;
+            margin-bottom: 28px;
         }
 
-        .dash-btn {
+        .code-input {
             flex: 1;
-            padding: 14px;
-            font-family: 'Inter', sans-serif;
-            font-size: 13px;
+            padding: 12px 18px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            font-family: var(--font);
+            font-size: 1.1rem;
             font-weight: 700;
+            color: var(--text-bright);
+            letter-spacing: 4px;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .code-input:focus {
+            border-color: var(--accent);
+        }
+
+        .code-btn {
+            padding: 12px 28px;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
             border: none;
             border-radius: 12px;
+            color: white;
+            font-family: var(--font);
+            font-size: 0.92rem;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s;
+            box-shadow: 0 4px 16px var(--accent-glow);
         }
 
-        .dash-btn:hover {
-            transform: scale(1.03);
+        .code-btn:hover {
+            transform: translateY(-2px);
         }
 
-        .btn-control {
-            background: rgba(56, 189, 248, 0.15);
-            color: var(--accent);
-            border: 1px solid rgba(56, 189, 248, 0.3);
+        /* ═══ Cards Grid ═══ */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 14px;
+            margin-bottom: 24px;
         }
 
-        .btn-control.denied {
-            background: rgba(244, 63, 94, 0.15);
-            color: var(--danger);
-            border-color: rgba(244, 63, 94, 0.3);
-        }
-
-        .btn-kick {
-            background: rgba(244, 63, 94, 0.12);
-            color: var(--danger);
-            border: 1px solid rgba(244, 63, 94, 0.2);
-        }
-
-        .btn-kick:hover {
-            background: rgba(244, 63, 94, 0.25);
-        }
-
-        .error-msg {
-            color: var(--danger);
-            font-size: 13px;
-            margin-top: 12px;
-        }
-
-        .refresh-note {
+        .metric-card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            padding: 20px;
             text-align: center;
-            font-size: 11px;
-            color: var(--text-dim);
-            margin-top: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+        }
+
+        .card-cpu::before {
+            background: linear-gradient(90deg, var(--neon-cyan), var(--accent));
+        }
+
+        .card-ram::before {
+            background: linear-gradient(90deg, var(--neon-green), var(--neon-cyan));
+        }
+
+        .card-viewers::before {
+            background: linear-gradient(90deg, var(--neon-orange), var(--neon-red));
+        }
+
+        .card-uptime::before {
+            background: linear-gradient(90deg, var(--accent), #e879f9);
+        }
+
+        .metric-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--text-bright);
+            line-height: 1;
+        }
+
+        .metric-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-top: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-sub {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ═══ Graphs Section ═══ */
+        .graphs-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .graph-card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            padding: 18px;
+        }
+
+        .graph-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text-bright);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .graph-canvas {
+            width: 100%;
+            height: 160px;
+            border-radius: 8px;
+        }
+
+        /* ═══ Actions Section ═══ */
+        .actions-section {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 14px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            font-family: var(--font);
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .action-btn:hover {
+            background: rgba(108, 99, 255, 0.1);
+            border-color: rgba(108, 99, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .action-btn.danger:hover {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        /* ═══ Session Info ═══ */
+        .info-table {
+            width: 100%;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-key {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .info-val {
+            font-size: 0.88rem;
+            color: var(--text-bright);
+            font-weight: 700;
+        }
+
+        .tag-on {
+            padding: 3px 10px;
+            border-radius: 10px;
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--neon-green);
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .tag-off {
+            padding: 3px 10px;
+            border-radius: 10px;
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--neon-red);
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .no-session {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .no-session .big-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+        }
+
+        /* ═══ Responsive ═══ */
+        @media (max-width: 640px) {
+            .graphs-section {
+                grid-template-columns: 1fr;
+            }
+
+            .cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .actions-section {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
 
 <body>
-    <div class="container">
+    <div class="dashboard">
         <div class="header">
-            <div class="logo">Orb<span class="accent">Desk</span> Dashboard</div>
-            <p class="subtitle">Панель управления хоста</p>
+            <h1>Orb<span>Desk</span> Dashboard</h1>
+            <span class="status-badge status-offline" id="status-badge">Оффлайн</span>
         </div>
 
-        <div class="code-entry">
-            <label>Введите код сессии</label>
-            <input type="text" class="code-input" id="dash-code" maxlength="6" inputmode="numeric" autocomplete="off"
-                placeholder="000000">
-            <br>
-            <button class="load-btn" id="dash-load">Загрузить</button>
-            <p class="error-msg" id="dash-error"></p>
+        <div class="code-section">
+            <input type="text" class="code-input" id="code-input" placeholder="Код сессии" maxlength="6"
+                inputmode="numeric">
+            <button class="code-btn" id="code-btn" onclick="loadDashboard()">Открыть</button>
         </div>
 
-        <div class="dashboard-card" id="dash-card">
-            <div class="dash-row">
-                <span class="dash-label">Статус</span>
-                <span class="dash-value" id="d-status">—</span>
-            </div>
-            <div class="dash-row">
-                <span class="dash-label">Код сессии</span>
-                <span class="dash-value" id="d-code">—</span>
-            </div>
-            <div class="dash-row">
-                <span class="dash-label">Зрителей</span>
-                <span class="dash-value" id="d-viewers">0</span>
-            </div>
-            <div class="dash-row">
-                <span class="dash-label">Управление</span>
-                <span class="dash-value" id="d-control">—</span>
-            </div>
-            <div class="dash-row">
-                <span class="dash-label">Пароль</span>
-                <span class="dash-value" id="d-password">—</span>
-            </div>
-            <div class="dash-row">
-                <span class="dash-label">Мониторов</span>
-                <span class="dash-value" id="d-monitors">—</span>
+        <div id="dashboard-content" style="display:none;">
+            <!-- Metric Cards -->
+            <div class="cards-grid" id="cards-grid">
+                <div class="metric-card card-cpu">
+                    <div class="metric-icon">🔥</div>
+                    <div class="metric-value" id="cpu-value">—</div>
+                    <div class="metric-label">CPU</div>
+                </div>
+                <div class="metric-card card-ram">
+                    <div class="metric-icon">💾</div>
+                    <div class="metric-value" id="ram-value">—</div>
+                    <div class="metric-label">RAM</div>
+                    <div class="metric-sub" id="ram-sub"></div>
+                </div>
+                <div class="metric-card card-viewers">
+                    <div class="metric-icon">👥</div>
+                    <div class="metric-value" id="viewers-value">0</div>
+                    <div class="metric-label">Зрители</div>
+                </div>
+                <div class="metric-card card-uptime">
+                    <div class="metric-icon">⏱️</div>
+                    <div class="metric-value" id="uptime-value">—</div>
+                    <div class="metric-label">Uptime</div>
+                </div>
             </div>
 
-            <div class="dash-actions">
-                <button class="dash-btn btn-control" id="d-toggle">🎮 Вкл/Выкл управление</button>
-                <button class="dash-btn btn-kick" id="d-kick">👢 Выгнать всех</button>
+            <!-- Graphs -->
+            <div class="graphs-section">
+                <div class="graph-card">
+                    <div class="graph-title">🔥 CPU Usage</div>
+                    <canvas class="graph-canvas" id="cpu-graph"></canvas>
+                </div>
+                <div class="graph-card">
+                    <div class="graph-title">💾 RAM Usage</div>
+                    <canvas class="graph-canvas" id="ram-graph"></canvas>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="actions-section">
+                <button class="action-btn" onclick="toggleControl()">🔁 Переключить управление</button>
+                <button class="action-btn danger" onclick="kickViewers()">👢 Выгнать всех</button>
+            </div>
+
+            <!-- Info Table -->
+            <div class="info-table" id="info-table">
+                <div class="info-row">
+                    <span class="info-key">Код сессии</span>
+                    <span class="info-val" id="info-code">—</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-key">Управление</span>
+                    <span class="info-val" id="info-control">—</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-key">Пароль</span>
+                    <span class="info-val" id="info-password">—</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-key">Мониторов</span>
+                    <span class="info-val" id="info-monitors">—</span>
+                </div>
             </div>
         </div>
 
-        <p class="refresh-note" id="refresh-note" style="display:none">Обновляется каждые 3 секунды</p>
+        <div id="no-session" class="no-session">
+            <div class="big-icon">📊</div>
+            <p>Введите код сессии для мониторинга</p>
+        </div>
     </div>
 
     <script>
-        const codeInput = document.getElementById('dash-code');
-        const loadBtn = document.getElementById('dash-load');
-        const errorMsg = document.getElementById('dash-error');
-        const card = document.getElementById('dash-card');
         let currentCode = '';
         let refreshInterval = null;
+        let metricsHistory = { cpu: [], ram: [] };
+        const MAX_POINTS = 60;
+        let sessionStartTime = null;
 
-        loadBtn.addEventListener('click', loadDashboard);
-        codeInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') loadDashboard();
-        });
+        const codeInput = document.getElementById('code-input');
+        codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadDashboard(); });
 
         async function loadDashboard() {
             const code = codeInput.value.trim();
-            if (code.length !== 6) {
-                errorMsg.textContent = 'Введите 6-значный код';
+            if (code.length < 6) return;
+            currentCode = code;
+            sessionStartTime = Date.now();
+            metricsHistory = { cpu: [], ram: [] };
+
+            fetchData();
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(fetchData, 3000);
+        }
+
+        async function fetchData() {
+            try {
+                const [dashResp, metricsResp] = await Promise.all([
+                    fetch(`/api/dashboard?code=${currentCode}`),
+                    fetch(`/api/dashboard/metrics?code=${currentCode}`)
+                ]);
+
+                if (!dashResp.ok) {
+                    document.getElementById('status-badge').className = 'status-badge status-offline';
+                    document.getElementById('status-badge').textContent = 'Оффлайн';
+                    document.getElementById('dashboard-content').style.display = 'none';
+                    document.getElementById('no-session').style.display = '';
+                    return;
+                }
+
+                const data = await dashResp.json();
+                const metricsData = await metricsResp.json();
+
+                document.getElementById('status-badge').className = 'status-badge status-online';
+                document.getElementById('status-badge').textContent = '● Онлайн';
+                document.getElementById('dashboard-content').style.display = '';
+                document.getElementById('no-session').style.display = 'none';
+
+                // Update cards
+                document.getElementById('viewers-value').textContent = data.viewers;
+                document.getElementById('info-code').textContent = currentCode;
+                document.getElementById('info-control').innerHTML = data.control_allowed
+                    ? '<span class="tag-on">✅ Разрешено</span>'
+                    : '<span class="tag-off">🔒 Запрещено</span>';
+                document.getElementById('info-password').innerHTML = data.has_password
+                    ? '<span class="tag-on">🔒 Установлен</span>'
+                    : '<span class="tag-off">Нет</span>';
+                document.getElementById('info-monitors').textContent = (data.monitors || []).length || '1';
+
+                // Metrics
+                const m = data.last_metrics;
+                if (m) {
+                    document.getElementById('cpu-value').textContent = m.cpu + '%';
+                    document.getElementById('ram-value').textContent = m.ram + '%';
+                    document.getElementById('ram-sub').textContent = `${m.ram_used || '?'}/${m.ram_total || '?'} GB`;
+                }
+
+                // Update metrics history from server
+                if (metricsData.metrics && metricsData.metrics.length > 0) {
+                    metricsHistory.cpu = metricsData.metrics.map(p => p.cpu || 0);
+                    metricsHistory.ram = metricsData.metrics.map(p => p.ram || 0);
+                }
+
+                // Uptime
+                if (sessionStartTime) {
+                    const elapsed = Math.round((Date.now() - sessionStartTime) / 1000);
+                    const m = Math.floor(elapsed / 60);
+                    const s = elapsed % 60;
+                    document.getElementById('uptime-value').textContent = m > 0 ? `${m}м` : `${s}с`;
+                }
+
+                drawGraph('cpu-graph', metricsHistory.cpu, '#06b6d4', '#6c63ff');
+                drawGraph('ram-graph', metricsHistory.ram, '#10b981', '#06b6d4');
+
+            } catch (e) {
+                console.error('[Dashboard] Error:', e);
+            }
+        }
+
+        function drawGraph(canvasId, data, color1, color2) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const w = canvas.clientWidth;
+            const h = canvas.clientHeight;
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+            ctx.scale(dpr, dpr);
+            ctx.clearRect(0, 0, w, h);
+
+            if (data.length < 2) {
+                ctx.fillStyle = '#6b7095';
+                ctx.font = '12px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('Ожидание данных...', w / 2, h / 2);
                 return;
             }
-            errorMsg.textContent = '';
-            currentCode = code;
 
-            try {
-                const resp = await fetch(`/api/dashboard?code=${code}`);
-                if (!resp.ok) {
-                    errorMsg.textContent = 'Сессия не найдена или хост оффлайн';
-                    card.classList.remove('active');
-                    return;
-                }
-                const data = await resp.json();
-                renderDashboard(data);
-                card.classList.add('active');
-                document.getElementById('refresh-note').style.display = '';
+            // Grid lines
+            ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = (h / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
 
-                // Auto-refresh
-                if (refreshInterval) clearInterval(refreshInterval);
-                refreshInterval = setInterval(refreshDashboard, 3000);
-            } catch {
-                errorMsg.textContent = 'Ошибка связи с сервером';
+            // Labels
+            ctx.fillStyle = '#6b7095';
+            ctx.font = '10px Inter';
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= 4; i++) {
+                const val = 100 - i * 25;
+                ctx.fillText(val + '%', w - 4, (h / 4) * i + 12);
+            }
+
+            // Line
+            const grad = ctx.createLinearGradient(0, 0, w, 0);
+            grad.addColorStop(0, color1);
+            grad.addColorStop(1, color2);
+
+            ctx.beginPath();
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+
+            const padding = 4;
+            const step = (w - padding * 2) / (MAX_POINTS - 1);
+
+            data.forEach((val, i) => {
+                const x = padding + i * step;
+                const y = h - (val / 100) * (h - 10) - 5;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Fill
+            const fillGrad = ctx.createLinearGradient(0, 0, 0, h);
+            fillGrad.addColorStop(0, color1.replace(')', ', 0.15)').replace('rgb', 'rgba'));
+            fillGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.lineTo(padding + (data.length - 1) * step, h);
+            ctx.lineTo(padding, h);
+            ctx.closePath();
+            ctx.fillStyle = fillGrad;
+            ctx.fill();
+
+            // Neon glow on last point
+            if (data.length > 0) {
+                const lastX = padding + (data.length - 1) * step;
+                const lastY = h - (data[data.length - 1] / 100) * (h - 10) - 5;
+                ctx.beginPath();
+                ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+                ctx.fillStyle = color2;
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(lastX, lastY, 8, 0, Math.PI * 2);
+                ctx.fillStyle = color2.replace(')', ', 0.2)').replace('rgb', 'rgba');
+                ctx.fill();
             }
         }
 
-        async function refreshDashboard() {
-            try {
-                const resp = await fetch(`/api/dashboard?code=${currentCode}`);
-                if (!resp.ok) {
-                    card.classList.remove('active');
-                    errorMsg.textContent = 'Сессия завершена';
-                    clearInterval(refreshInterval);
-                    return;
-                }
-                const data = await resp.json();
-                renderDashboard(data);
-            } catch { }
-        }
-
-        function renderDashboard(data) {
-            document.getElementById('d-status').innerHTML = '<span class="status-online">🟢 Онлайн</span>';
-            document.getElementById('d-code').textContent = data.code;
-            document.getElementById('d-viewers').textContent = data.viewers;
-            document.getElementById('d-monitors').textContent = (data.monitors || []).length || '1';
-
-            const ctrl = data.control_allowed;
-            const ctrlEl = document.getElementById('d-control');
-            ctrlEl.innerHTML = ctrl
-                ? '<span class="status-online">✅ Разрешено</span>'
-                : '<span class="status-offline">🔒 Запрещено</span>';
-
-            const toggleBtn = document.getElementById('d-toggle');
-            toggleBtn.className = 'dash-btn btn-control' + (ctrl ? '' : ' denied');
-            toggleBtn.textContent = ctrl ? '🔒 Запретить управление' : '🎮 Разрешить управление';
-
-            document.getElementById('d-password').textContent = data.has_password ? '🔑 Установлен' : '—';
-        }
-
-        document.getElementById('d-toggle').addEventListener('click', async () => {
+        async function toggleControl() {
+            if (!currentCode) return;
             try {
                 await fetch('/api/dashboard/toggle_control', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: currentCode })
+                    body: JSON.stringify({ code: currentCode }),
                 });
-                refreshDashboard();
-            } catch { }
-        });
+                fetchData();
+            } catch (e) { console.error(e); }
+        }
 
-        document.getElementById('d-kick').addEventListener('click', async () => {
+        async function kickViewers() {
+            if (!currentCode) return;
             if (!confirm('Выгнать всех зрителей?')) return;
             try {
                 await fetch('/api/dashboard/kick', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: currentCode })
+                    body: JSON.stringify({ code: currentCode }),
                 });
-                refreshDashboard();
-            } catch { }
-        });
+                fetchData();
+            } catch (e) { console.error(e); }
+        }
     </script>
 </body>
 

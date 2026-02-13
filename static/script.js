@@ -23,6 +23,7 @@ let ws = null;
 let sessionCode = '';
 let controlAllowed = false;
 let drawingMode = false;
+let myViewerId = '';
 
 
 // ═══════════════════════════════════════════════════════
@@ -106,7 +107,6 @@ pinDigits.forEach((digit, idx) => {
 
 connectBtn.addEventListener('click', connectViewer);
 
-// Проверяем, нужен ли пароль для сессии
 async function checkSessionForPassword(code) {
     try {
         const resp = await fetch(`/session/check?code=${code}`);
@@ -122,12 +122,15 @@ async function checkSessionForPassword(code) {
 
 
 // ═══════════════════════════════════════════════════════
-// FPS & Info
+// FPS & Adaptive Flow
 // ═══════════════════════════════════════════════════════
 
 let frameCount = 0;
 let lastFpsUpdate = performance.now();
 let measuredFps = 0;
+let fpsHistory = [];
+let autoQualityEnabled = true;
+let currentQualityProfile = 'medium';
 
 function updateFpsCounter() {
     frameCount++;
@@ -138,7 +141,59 @@ function updateFpsCounter() {
         lastFpsUpdate = now;
         const fpsEl = document.getElementById('info-fps');
         if (fpsEl) fpsEl.textContent = measuredFps;
+
+        // Adaptive Flow — обновляем индикатор
+        updateConnectionIndicator(measuredFps);
+
+        // Adaptive auto-quality
+        fpsHistory.push(measuredFps);
+        if (fpsHistory.length > 10) fpsHistory.shift();
+        if (autoQualityEnabled && fpsHistory.length >= 5) {
+            const avgFps = fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
+            autoAdjustQuality(avgFps);
+        }
     }
+}
+
+function updateConnectionIndicator(fps) {
+    const indicator = document.getElementById('connection-indicator');
+    const text = document.getElementById('ci-text');
+    if (!indicator) return;
+
+    indicator.classList.remove('good', 'medium', 'bad');
+    if (fps >= 25) {
+        indicator.classList.add('good');
+        text.textContent = `${fps} FPS`;
+    } else if (fps >= 12) {
+        indicator.classList.add('medium');
+        text.textContent = `${fps} FPS`;
+    } else {
+        indicator.classList.add('bad');
+        text.textContent = `${fps} FPS`;
+    }
+}
+
+function autoAdjustQuality(avgFps) {
+    if (currentQualityProfile === 'high' && avgFps < 20) {
+        switchQuality('medium');
+    } else if (currentQualityProfile === 'medium' && avgFps < 10) {
+        switchQuality('low');
+    } else if (currentQualityProfile === 'low' && avgFps > 25) {
+        switchQuality('medium');
+    }
+}
+
+function switchQuality(profile) {
+    currentQualityProfile = profile;
+    send({ action: 'set_quality', profile });
+
+    const qualitySelector = document.getElementById('quality-selector');
+    qualitySelector.querySelectorAll('.q-btn').forEach(b => b.classList.remove('active'));
+    const btn = qualitySelector.querySelector(`[data-quality="${profile}"]`);
+    if (btn) btn.classList.add('active');
+
+    const labels = { 'low': 'Низкое', 'medium': 'Среднее', 'high': 'Высокое' };
+    showToast(`📊 Авто-качество: ${labels[profile]}`);
 }
 
 
@@ -196,7 +251,6 @@ async function connectViewer() {
 
     ws.onmessage = (e) => {
         if (e.data instanceof ArrayBuffer) {
-            // Бинарный кадр экрана
             updateFpsCounter();
             const blob = new Blob([e.data], { type: 'image/jpeg' });
             const url = URL.createObjectURL(blob);
@@ -215,7 +269,6 @@ async function connectViewer() {
             };
             img.src = url;
         } else {
-            // JSON сообщение
             try {
                 const msg = JSON.parse(e.data);
                 handleServerMessage(msg);
@@ -241,9 +294,9 @@ async function connectViewer() {
         connectBtn.disabled = false;
         connectBtn.textContent = 'Подключиться';
         closeAllOverlays();
+        stopRecording();
     };
 
-    // Обновление таймера сессии
     setInterval(() => {
         if (connectionTime && ws && ws.readyState === WebSocket.OPEN) {
             const latencyEl = document.getElementById('info-latency');
@@ -285,6 +338,26 @@ function handleServerMessage(msg) {
         case 'draw_clear':
             drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
             break;
+
+        case 'viewer_identity':
+            myViewerId = msg.viewer_id;
+            break;
+
+        case 'cursor_pos':
+            updateGhostCursor(msg);
+            break;
+
+        case 'cursor_remove':
+            removeGhostCursor(msg.viewer_id);
+            break;
+
+        case 'clipboard_sync':
+            handleClipboardReceive(msg.text);
+            break;
+
+        case 'screenshot_result':
+            showScreenshot(msg.data);
+            break;
     }
 }
 
@@ -302,6 +375,8 @@ document.getElementById('close-session').addEventListener('click', () => {
     showPage('landing');
     closeAllOverlays();
     disableDrawMode();
+    stopRecording();
+    clearGhostCursors();
 });
 
 
@@ -326,9 +401,17 @@ function coords(e) {
 }
 
 let lastMove = 0;
+let lastCursorSend = 0;
 canvas.addEventListener('mousemove', (e) => {
-    if (drawingMode || !controlAllowed) return;
+    if (drawingMode) return;
     const now = Date.now();
+    // Отправляем позицию курсора для ghost cursors (каждые 100ms)
+    if (now - lastCursorSend > 100) {
+        const c = coords(e);
+        send({ type: 'cursor_pos', x: c.x, y: c.y });
+        lastCursorSend = now;
+    }
+    if (!controlAllowed) return;
     if (now - lastMove > 50) {
         sendControl({ action: 'move', ...coords(e) });
         lastMove = now;
@@ -355,10 +438,8 @@ canvas.addEventListener('wheel', (e) => {
 
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-// Клавиатура
 window.addEventListener('keydown', (e) => {
     if (!pages.remote.classList.contains('active') || !controlAllowed) return;
-    // Не перехватываем, если фокус в оверлее или чате
     if (e.target.closest('.overlay-panel') || e.target.closest('.chat-input-area')) return;
     if (['F5', 'r'].includes(e.key) && e.ctrlKey) return;
     e.preventDefault();
@@ -376,24 +457,56 @@ document.getElementById('fullscreen').addEventListener('click', () => {
 
 
 // ═══════════════════════════════════════════════════════
+// Focus Mode
+// ═══════════════════════════════════════════════════════
+
+let focusMode = false;
+document.getElementById('btn-focus').addEventListener('click', () => {
+    focusMode = !focusMode;
+    const nav = document.getElementById('glass-nav');
+    const toolbar = document.querySelector('.floating-toolbar');
+    if (focusMode) {
+        nav.classList.add('nav-hidden');
+        toolbar.classList.add('toolbar-hidden');
+        showToast('👁️ Focus Mode — двойной клик для выхода');
+    } else {
+        nav.classList.remove('nav-hidden');
+        toolbar.classList.remove('toolbar-hidden');
+    }
+});
+
+document.getElementById('viewport-container').addEventListener('dblclick', (e) => {
+    if (focusMode && !drawingMode) {
+        focusMode = false;
+        document.getElementById('glass-nav').classList.remove('nav-hidden');
+        document.querySelector('.floating-toolbar').classList.remove('toolbar-hidden');
+    }
+});
+
+
+// ═══════════════════════════════════════════════════════
 // OVERLAYS
 // ═══════════════════════════════════════════════════════
 
 const settingsOverlay = document.getElementById('settings-overlay');
 const syskeysOverlay = document.getElementById('syskeys-overlay');
 const chatOverlay = document.getElementById('chat-overlay');
+const quickActionsOverlay = document.getElementById('quickactions-overlay');
 const btnSettings = document.getElementById('btn-settings');
 const btnSyskeys = document.getElementById('btn-syskeys');
 const btnChat = document.getElementById('btn-chat');
 const btnDraw = document.getElementById('btn-draw');
+const btnQuickActions = document.getElementById('btn-quickactions');
 
 function closeAllOverlays() {
     settingsOverlay.classList.add('hidden');
     syskeysOverlay.classList.add('hidden');
     chatOverlay.classList.add('hidden');
+    quickActionsOverlay.classList.add('hidden');
     btnSettings.classList.remove('active');
     btnSyskeys.classList.remove('active');
     btnChat.classList.remove('active');
+    btnQuickActions.classList.remove('active');
 }
 
 function toggleOverlay(overlay, btn) {
@@ -407,40 +520,42 @@ function toggleOverlay(overlay, btn) {
 
 btnSettings.addEventListener('click', () => toggleOverlay(settingsOverlay, btnSettings));
 btnSyskeys.addEventListener('click', () => toggleOverlay(syskeysOverlay, btnSyskeys));
+btnQuickActions.addEventListener('click', () => toggleOverlay(quickActionsOverlay, btnQuickActions));
 btnChat.addEventListener('click', () => {
     toggleOverlay(chatOverlay, btnChat);
-    // Убираем бейдж непрочитанных
     btnChat.classList.remove('has-unread');
     if (!chatOverlay.classList.contains('hidden')) {
         document.getElementById('chat-input').focus();
     }
 });
 
-// Рисование — переключение режима
 btnDraw.addEventListener('click', () => {
-    if (drawingMode) {
-        disableDrawMode();
-    } else {
-        enableDrawMode();
-    }
+    if (drawingMode) disableDrawMode();
+    else enableDrawMode();
 });
 
-// Закрытие по крестику
 document.querySelectorAll('.overlay-close').forEach(btn => {
     btn.addEventListener('click', () => {
         const targetId = btn.dataset.close;
-        document.getElementById(targetId).classList.add('hidden');
+        if (targetId) {
+            document.getElementById(targetId).classList.add('hidden');
+        }
+        // Screenshot modal
+        if (btn.id === 'screenshot-close') {
+            document.getElementById('screenshot-modal').classList.add('hidden');
+        }
         btnSettings.classList.remove('active');
         btnSyskeys.classList.remove('active');
         btnChat.classList.remove('active');
+        btnQuickActions.classList.remove('active');
     });
 });
 
-// Закрытие по клику вне оверлея
 document.addEventListener('mousedown', (e) => {
     if (!e.target.closest('.overlay-panel') &&
         !e.target.closest('.nav-icon-btn') &&
-        !e.target.closest('.draw-toolbar')) {
+        !e.target.closest('.draw-toolbar') &&
+        !e.target.closest('.screenshot-modal')) {
         closeAllOverlays();
     }
 });
@@ -455,6 +570,7 @@ qualitySelector.addEventListener('click', (e) => {
 
     qualitySelector.querySelectorAll('.q-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    currentQualityProfile = quality;
 
     send({ action: 'set_quality', profile: quality });
     showToast(`📊 Качество: ${{ 'low': 'Низкое (15 FPS)', 'medium': 'Среднее (30 FPS)', 'high': 'Высокое (60 FPS)' }[quality]}`);
@@ -507,7 +623,6 @@ document.querySelectorAll('.syskey-btn:not(.modifier-btn):not(.hotkey-btn)').for
     btn.addEventListener('click', () => {
         const key = btn.dataset.key;
         if (!key) return;
-
         if (heldModifiers.size > 0) {
             const keys = [...heldModifiers, key];
             sendControl({ action: 'hotkey', keys });
@@ -515,7 +630,6 @@ document.querySelectorAll('.syskey-btn:not(.modifier-btn):not(.hotkey-btn)').for
         } else {
             sendControl({ action: 'key', key });
         }
-
         btn.style.transform = 'scale(0.9)';
         setTimeout(() => btn.style.transform = '', 150);
     });
@@ -527,7 +641,6 @@ document.querySelectorAll('.hotkey-btn').forEach(btn => {
         if (!hotkey) return;
         const keys = hotkey.split(',');
         sendControl({ action: 'hotkey', keys });
-
         btn.style.transform = 'scale(0.9)';
         setTimeout(() => btn.style.transform = '', 150);
     });
@@ -543,6 +656,261 @@ function releaseAllModifiers() {
 
 
 // ═══════════════════════════════════════════════════════
+// ⚡ Quick Actions
+// ═══════════════════════════════════════════════════════
+
+document.querySelectorAll('.qa-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const quick = btn.dataset.quick;
+        if (!quick) return;
+
+        if (quick === 'lock_screen') {
+            if (!confirm('Заблокировать экран хоста? Потребуется ввести пароль Windows.')) return;
+        }
+
+        sendControl({ action: 'quick_action', quick });
+
+        btn.style.transform = 'scale(0.92)';
+        setTimeout(() => btn.style.transform = '', 200);
+
+        const labels = {
+            minimize_all: '🗕 Свернуто',
+            show_desktop: '🖥️ Рабочий стол',
+            task_manager: '📊 Диспетчер задач',
+            open_explorer: '📁 Проводник',
+            screenshot: '📸 Скриншот...',
+            lock_screen: '🔒 Блокировка',
+        };
+        showToast(labels[quick] || '⚡ Действие отправлено');
+    });
+});
+
+
+// ═══════════════════════════════════════════════════════
+// 📋 Clipboard Sync
+// ═══════════════════════════════════════════════════════
+
+document.getElementById('btn-clipboard').addEventListener('click', async () => {
+    try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+            send({ type: 'clipboard_sync', text: text.substring(0, 10000) });
+            showToast('📋 Буфер отправлен хосту');
+        } else {
+            showToast('📋 Буфер пуст');
+        }
+    } catch (err) {
+        showToast('📋 Нет доступа к буферу (нужен HTTPS)');
+    }
+});
+
+function handleClipboardReceive(text) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        showToast(`📋 Буфер получен (${text.length} символов)`);
+    }).catch(() => {
+        showToast('📋 Не удалось записать в буфер');
+    });
+}
+
+
+// ═══════════════════════════════════════════════════════
+// 👻 Ghost Cursors
+// ═══════════════════════════════════════════════════════
+
+const ghostCursors = {};
+const ghostLayer = document.getElementById('ghost-cursors-layer');
+
+function updateGhostCursor(msg) {
+    let cursor = ghostCursors[msg.viewer_id];
+    if (!cursor) {
+        cursor = document.createElement('div');
+        cursor.className = 'ghost-cursor';
+        cursor.innerHTML = `
+            <svg width="16" height="20" viewBox="0 0 16 20" fill="none">
+                <path d="M0 0L16 12L8 12L12 20L8 18L4 12L0 16V0Z" fill="${msg.color}" stroke="#000" stroke-width="1"/>
+            </svg>
+            <span class="ghost-label" style="background:${msg.color}">${msg.viewer_id}</span>
+        `;
+        ghostLayer.appendChild(cursor);
+        ghostCursors[msg.viewer_id] = cursor;
+    }
+
+    // Позиционирование относительно viewport
+    const rect = canvas.getBoundingClientRect();
+    const layerRect = ghostLayer.getBoundingClientRect();
+    const x = rect.left - layerRect.left + msg.x * rect.width;
+    const y = rect.top - layerRect.top + msg.y * rect.height;
+    cursor.style.transform = `translate(${x}px, ${y}px)`;
+}
+
+function removeGhostCursor(viewerId) {
+    const cursor = ghostCursors[viewerId];
+    if (cursor) {
+        cursor.style.opacity = '0';
+        setTimeout(() => {
+            cursor.remove();
+            delete ghostCursors[viewerId];
+        }, 300);
+    }
+}
+
+function clearGhostCursors() {
+    Object.keys(ghostCursors).forEach(id => {
+        ghostCursors[id].remove();
+        delete ghostCursors[id];
+    });
+}
+
+
+// ═══════════════════════════════════════════════════════
+// 📁 OrbDrop — File Drag & Drop
+// ═══════════════════════════════════════════════════════
+
+const viewportContainer = document.getElementById('viewport-container');
+const dropOverlay = document.getElementById('drop-overlay');
+let dragCounter = 0;
+
+viewportContainer.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragCounter++;
+    dropOverlay.classList.remove('hidden');
+});
+
+viewportContainer.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter <= 0) {
+        dragCounter = 0;
+        dropOverlay.classList.add('hidden');
+    }
+});
+
+viewportContainer.addEventListener('dragover', (e) => {
+    e.preventDefault();
+});
+
+viewportContainer.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    dropOverlay.classList.add('hidden');
+
+    const files = e.dataTransfer.files;
+    if (!files.length || !sessionCode) return;
+
+    for (const file of files) {
+        if (file.size > 50 * 1024 * 1024) {
+            showToast(`❌ ${file.name} слишком большой (макс. 50 MB)`);
+            continue;
+        }
+
+        showToast(`📤 Отправка: ${file.name}...`);
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const resp = await fetch(`/api/upload/${sessionCode}`, {
+                method: 'POST',
+                body: formData,
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                showToast(`✅ ${file.name} отправлен (${data.size_kb} KB)`);
+            } else {
+                showToast(`❌ Ошибка отправки ${file.name}`);
+            }
+        } catch {
+            showToast(`❌ Ошибка сети при отправке ${file.name}`);
+        }
+    }
+});
+
+
+// ═══════════════════════════════════════════════════════
+// 📸 Screenshot Modal
+// ═══════════════════════════════════════════════════════
+
+function showScreenshot(base64Data) {
+    const modal = document.getElementById('screenshot-modal');
+    const img = document.getElementById('screenshot-img');
+    const dl = document.getElementById('screenshot-download');
+
+    img.src = `data:image/png;base64,${base64Data}`;
+    dl.href = img.src;
+    modal.classList.remove('hidden');
+    showToast('📸 Скриншот готов!');
+}
+
+document.getElementById('screenshot-close').addEventListener('click', () => {
+    document.getElementById('screenshot-modal').classList.add('hidden');
+});
+
+
+// ═══════════════════════════════════════════════════════
+// ⏺ Session Recording
+// ═══════════════════════════════════════════════════════
+
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
+
+const btnRecord = document.getElementById('btn-record');
+
+btnRecord.addEventListener('click', () => {
+    if (isRecording) {
+        stopRecording();
+    } else {
+        startRecording();
+    }
+});
+
+function startRecording() {
+    try {
+        const stream = canvas.captureStream(30);
+        mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'video/webm;codecs=vp9',
+            videoBitsPerSecond: 3000000,
+        });
+
+        recordedChunks = [];
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) recordedChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const now = new Date();
+            a.download = `OrbDesk_${now.toISOString().slice(0, 19).replace(/[:-]/g, '')}.webm`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('💾 Запись сохранена!');
+        };
+
+        mediaRecorder.start(1000);
+        isRecording = true;
+        btnRecord.classList.add('recording');
+        btnRecord.textContent = '⏹';
+        showToast('⏺ Запись начата');
+    } catch (err) {
+        showToast('❌ Не удалось начать запись');
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        btnRecord.classList.remove('recording');
+        btnRecord.textContent = '⏺';
+    }
+}
+
+
+// ═══════════════════════════════════════════════════════
 // 💬 ЧАТ
 // ═══════════════════════════════════════════════════════
 
@@ -553,7 +921,7 @@ const chatMessages = document.getElementById('chat-messages');
 chatSendBtn.addEventListener('click', sendChatMessage);
 chatInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') sendChatMessage();
-    e.stopPropagation(); // Не перехватываем клавиши чата
+    e.stopPropagation();
 });
 
 function sendChatMessage() {
@@ -580,7 +948,6 @@ function addChatMessage(msg) {
     chatMessages.appendChild(div);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    // Если чат закрыт — показать бейдж
     if (chatOverlay.classList.contains('hidden') && !isMe) {
         btnChat.classList.add('has-unread');
     }
@@ -620,7 +987,6 @@ function disableDrawMode() {
     drawCanvas.style.cursor = 'default';
 }
 
-// Цвета и размеры
 document.querySelectorAll('.draw-color').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.draw-color').forEach(b => b.classList.remove('active'));
@@ -642,7 +1008,6 @@ document.getElementById('draw-clear').addEventListener('click', () => {
     send({ type: 'draw_clear' });
 });
 
-// Рисование на canvas
 drawCanvas.addEventListener('mousedown', (e) => {
     if (!drawingMode) return;
     isDrawing = true;
@@ -658,8 +1023,6 @@ drawCanvas.addEventListener('mousemove', (e) => {
     const y = (e.clientY - r.top) / r.height;
 
     drawLine(lastDrawX, lastDrawY, x, y, drawColor, drawSize);
-
-    // Отправляем точки другим
     send({ type: 'draw', x1: lastDrawX, y1: lastDrawY, x2: x, y2: y, color: drawColor, size: drawSize });
 
     lastDrawX = x;
