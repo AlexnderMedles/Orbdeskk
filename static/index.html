@@ -17,6 +17,8 @@
 
 <body>
 
+    <div id="particles-js"></div>
+
     <!-- ═══ Экран 1: Главная ═══ -->
     <div id="landing-page" class="page active">
         <div class="glass-card main-card">
@@ -43,6 +45,17 @@
                         <span class="role-desc">Введите код и помогите другу</span>
                     </div>
                 </button>
+            </div>
+
+            <!-- История подключений (Quick Connect) -->
+            <div id="history-panel" class="history-panel hidden">
+                <div class="history-header">
+                    <span>🕒 Недавние</span>
+                    <button id="clear-history" class="clear-history-btn" title="Очистить">🗑️</button>
+                </div>
+                <div id="history-list" class="history-list">
+                    <!-- Заполняется JS -->
+                </div>
             </div>
 
             <div class="features">

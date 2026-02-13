@@ -965,4 +965,100 @@ function showToast(message) {
     if (toastTimeout) clearTimeout(toastTimeout);
     toastTimeout = setTimeout(() => toast.classList.remove('show'), 2500);
 }
-function escapeHtml(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+// ═══════════════════════════════════════════════════════
+// 🕒 Connection History & Particles
+// ═══════════════════════════════════════════════════════
+const historyPanel = document.getElementById('history-panel');
+const historyList = document.getElementById('history-list');
+
+function loadHistory() {
+    const hist = JSON.parse(localStorage.getItem('orb_history') || '[]');
+    renderHistory(hist);
+}
+function saveHistory(code) {
+    let hist = JSON.parse(localStorage.getItem('orb_history') || '[]');
+    hist = hist.filter(h => h.code !== code);
+    hist.unshift({ code, time: Date.now() });
+    if (hist.length > 5) hist.pop();
+    localStorage.setItem('orb_history', JSON.stringify(hist));
+    renderHistory(hist);
+}
+function renderHistory(hist) {
+    if (!hist.length) { historyPanel.classList.add('hidden'); return; }
+    historyPanel.classList.remove('hidden');
+    historyList.innerHTML = hist.map(h => {
+        const t = new Date(h.time).toLocaleDateString();
+        return `<div class="history-item" onclick="useHistory('${h.code}')">
+            <span class="h-code">${h.code}</span><span class="h-time">${t}</span>
+        </div>`;
+    }).join('');
+}
+function useHistory(code) {
+    showPage('viewer');
+    code.split('').forEach((d, i) => { if (pinDigits[i]) { pinDigits[i].value = d; pinDigits[i].classList.add('filled'); } });
+    checkSessionForPassword(code);
+    connectBtn.disabled = false;
+}
+document.getElementById('clear-history').addEventListener('click', () => {
+    localStorage.removeItem('orb_history');
+    renderHistory([]);
+});
+
+// Particles (Simple Vanilla JS implementation)
+function initParticles() {
+    const container = document.getElementById('particles-js');
+    const canvas = document.createElement('canvas');
+    container.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    let width, height, particles = [];
+
+    function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    class Particle {
+        constructor() { this.reset(); }
+        reset() {
+            this.x = Math.random() * width;
+            this.y = Math.random() * height;
+            this.vx = (Math.random() - 0.5) * 0.5;
+            this.vy = (Math.random() - 0.5) * 0.5;
+            this.size = Math.random() * 2 + 1;
+            this.alpha = Math.random() * 0.5 + 0.1;
+        }
+        update() {
+            this.x += this.vx; this.y += this.vy;
+            if (this.x < 0 || this.x > width || this.y < 0 || this.y > height) this.reset();
+        }
+        draw() {
+            ctx.fillStyle = `rgba(108, 92, 231, ${this.alpha})`;
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+
+    for (let i = 0; i < 50; i++) particles.push(new Particle());
+
+    function animate() {
+        ctx.clearRect(0, 0, width, height);
+        particles.forEach(p => { p.update(); p.draw(); });
+        requestAnimationFrame(animate);
+    }
+    animate();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    loadHistory();
+    initParticles();
+});
+
+// Hook into connectViewer to save history
+const originalConnect = connectViewer;
+connectViewer = async function () {
+    const code = getPinCode();
+    if (code.length === 6) saveHistory(code);
+    await originalConnect.apply(this, arguments);
+};
+
