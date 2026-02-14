@@ -334,11 +334,7 @@ function updateControlBadge(allowed) {
     controlBadge.textContent = allowed ? '🎮 Управление' : '👁️ Просмотр';
 }
 
-document.getElementById('close-session').addEventListener('click', () => {
-    if (ws) ws.close(); ws = null; sessionCode = '';
-    connectionTime = 0; showPage('landing');
-    closeAllOverlays(); disableDrawMode(); stopRecording(); clearGhostCursors();
-});
+// Disconnect handled by btn-disconnect below
 
 // ═══════════════════════════════════════════════════════
 // УПРАВЛЕНИЕ: мышь + клавиатура
@@ -416,7 +412,7 @@ document.getElementById('viewport-container').addEventListener('dblclick', (e) =
 // OVERLAYS
 // ═══════════════════════════════════════════════════════
 const overlayIds = ['settings-overlay', 'syskeys-overlay', 'chat-overlay', 'quickactions-overlay', 'explorer-overlay', 'taskmgr-overlay', 'audit-overlay'];
-const btnIds = { 'settings-overlay': 'btn-settings', 'syskeys-overlay': 'btn-syskeys', 'chat-overlay': 'btn-chat', 'quickactions-overlay': 'btn-quickactions', 'explorer-overlay': 'btn-explorer', 'taskmgr-overlay': 'btn-taskmgr', 'audit-overlay': 'btn-audit' };
+const btnIds = { 'settings-overlay': 'btn-settings', 'syskeys-overlay': 'btn-syskeys', 'chat-overlay': 'btn-chat', 'quickactions-overlay': 'btn-quickactions', 'explorer-overlay': 'btn-file-explorer', 'taskmgr-overlay': 'btn-task-mgr', 'audit-overlay': 'btn-audit' };
 
 function closeAllOverlays() {
     overlayIds.forEach(id => document.getElementById(id).classList.add('hidden'));
@@ -433,29 +429,15 @@ function toggleOverlay(overlayId) {
 // ═══════════════════════════════════════════════════════
 // 🖱️ Navbar & Floating Actions
 // ═══════════════════════════════════════════════════════
-const sysKeysOverlay = document.getElementById('syskeys-overlay');
-const quickActionsOverlay = document.getElementById('quick-actions-overlay');
-
-document.getElementById('btn-syskeys').addEventListener('click', () => toggleOverlay(sysKeysOverlay, document.getElementById('btn-syskeys')));
-document.getElementById('btn-quick').addEventListener('click', () => toggleOverlay(quickActionsOverlay, document.getElementById('btn-quick'))); // If quick actions overlay still exists
+document.getElementById('btn-settings').addEventListener('click', () => toggleOverlay('settings-overlay'));
+document.getElementById('btn-syskeys').addEventListener('click', () => toggleOverlay('syskeys-overlay'));
+document.getElementById('btn-quickactions').addEventListener('click', () => toggleOverlay('quickactions-overlay'));
 
 // Navbar Direct Buttons
-document.getElementById('btn-chat').addEventListener('click', () => toggleOverlay(chatOverlay, document.getElementById('btn-chat')));
-document.getElementById('btn-file-explorer').addEventListener('click', () => { toggleOverlay(explorerOverlay, document.getElementById('btn-file-explorer')); refreshFileList(); });
-document.getElementById('btn-task-mgr').addEventListener('click', () => { toggleOverlay(taskMgrOverlay, document.getElementById('btn-task-mgr')); refreshProcList(); });
-document.getElementById('btn-audit').addEventListener('click', () => toggleOverlay(auditOverlay, document.getElementById('btn-audit')));
-
-// Privacy Shield
-document.getElementById('btn-privacy').addEventListener('click', () => {
-    isShieldActive = !isShieldActive;
-    sendControl({ type: 'privacy_shield', active: isShieldActive });
-    updateShieldBtn();
-});
-function updateShieldBtn() {
-    const btn = document.getElementById('btn-privacy');
-    if (isShieldActive) { btn.classList.add('active'); btn.innerHTML = '🛡️<span class="bad">ON</span>'; }
-    else { btn.classList.remove('active'); btn.innerHTML = '🛡️'; }
-}
+document.getElementById('btn-chat').addEventListener('click', () => toggleOverlay('chat-overlay'));
+document.getElementById('btn-file-explorer').addEventListener('click', () => { toggleOverlay('explorer-overlay'); refreshFileList(); });
+document.getElementById('btn-task-mgr').addEventListener('click', () => { toggleOverlay('taskmgr-overlay'); refreshProcList(); });
+document.getElementById('btn-audit').addEventListener('click', () => toggleOverlay('audit-overlay'));
 
 // Recording
 document.getElementById('btn-rec').addEventListener('click', () => {
@@ -471,9 +453,9 @@ document.getElementById('btn-fullscreen').addEventListener('click', () => {
 // Disconnect
 document.getElementById('btn-disconnect').addEventListener('click', () => {
     if (confirm('Отключиться от сеанса?')) {
-        ws.close();
-        showPage('landing');
-        resetState();
+        if (ws) ws.close(); ws = null; sessionCode = '';
+        connectionTime = 0; showPage('landing');
+        closeAllOverlays(); disableDrawMode(); stopRecording(); clearGhostCursors();
     }
 });
 
@@ -980,7 +962,22 @@ function renderProcessList(processes) {
 }
 
 // ═══════════════════════════════════════════════════════
-// Toast & Helpers
+// Helpers
+// ═══════════════════════════════════════════════════════
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+function refreshFileList() {
+    send({ type: 'browse_dir', path: explorerCurrentPath || '' });
+}
+function refreshProcList() {
+    send({ type: 'request_processes' });
+}
+
+// ═══════════════════════════════════════════════════════
+// Toast
 // ═══════════════════════════════════════════════════════
 let toastTimeout = null;
 function showToast(message) {
