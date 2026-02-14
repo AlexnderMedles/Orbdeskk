@@ -522,6 +522,14 @@ body {
     box-shadow: 0 0 12px var(--accent-glow);
 }
 
+.nav-sep {
+    width: 1px;
+    height: 24px;
+    background: var(--border);
+    margin: 0 4px;
+    display: inline-block;
+}
+
 /* ═══ Toast Polish ═══ */
 .toast {
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(108, 92, 231, 0.15);

@@ -430,27 +430,52 @@ function toggleOverlay(overlayId) {
     if (isHidden) { overlay.classList.remove('hidden'); if (btn) btn.classList.add('active'); }
 }
 
-document.getElementById('btn-settings').addEventListener('click', () => toggleOverlay('settings-overlay'));
-document.getElementById('btn-syskeys').addEventListener('click', () => toggleOverlay('syskeys-overlay'));
-document.getElementById('btn-quickactions').addEventListener('click', () => toggleOverlay('quickactions-overlay'));
-document.getElementById('btn-chat').addEventListener('click', () => {
-    toggleOverlay('chat-overlay');
-    document.getElementById('btn-chat').classList.remove('has-unread');
-    if (!document.getElementById('chat-overlay').classList.contains('hidden')) document.getElementById('chat-input').focus();
+// ═══════════════════════════════════════════════════════
+// 🖱️ Navbar & Floating Actions
+// ═══════════════════════════════════════════════════════
+const sysKeysOverlay = document.getElementById('syskeys-overlay');
+const quickActionsOverlay = document.getElementById('quick-actions-overlay');
+
+document.getElementById('btn-syskeys').addEventListener('click', () => toggleOverlay(sysKeysOverlay, document.getElementById('btn-syskeys')));
+document.getElementById('btn-quick').addEventListener('click', () => toggleOverlay(quickActionsOverlay, document.getElementById('btn-quick'))); // If quick actions overlay still exists
+
+// Navbar Direct Buttons
+document.getElementById('btn-chat').addEventListener('click', () => toggleOverlay(chatOverlay, document.getElementById('btn-chat')));
+document.getElementById('btn-file-explorer').addEventListener('click', () => { toggleOverlay(explorerOverlay, document.getElementById('btn-file-explorer')); refreshFileList(); });
+document.getElementById('btn-task-mgr').addEventListener('click', () => { toggleOverlay(taskMgrOverlay, document.getElementById('btn-task-mgr')); refreshProcList(); });
+document.getElementById('btn-audit').addEventListener('click', () => toggleOverlay(auditOverlay, document.getElementById('btn-audit')));
+
+// Privacy Shield
+document.getElementById('btn-privacy').addEventListener('click', () => {
+    isShieldActive = !isShieldActive;
+    sendControl({ type: 'privacy_shield', active: isShieldActive });
+    updateShieldBtn();
 });
-document.getElementById('btn-explorer').addEventListener('click', () => {
-    toggleOverlay('explorer-overlay');
-    if (!document.getElementById('explorer-overlay').classList.contains('hidden') && !explorerLoaded) {
-        send({ type: 'browse_dir', path: '' });
-        explorerLoaded = true;
+function updateShieldBtn() {
+    const btn = document.getElementById('btn-privacy');
+    if (isShieldActive) { btn.classList.add('active'); btn.innerHTML = '🛡️<span class="bad">ON</span>'; }
+    else { btn.classList.remove('active'); btn.innerHTML = '🛡️'; }
+}
+
+// Recording
+document.getElementById('btn-rec').addEventListener('click', () => {
+    if (!isRecording) startRecording(); else stopRecording();
+});
+
+// Fullscreen
+document.getElementById('btn-fullscreen').addEventListener('click', () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else if (document.exitFullscreen) document.exitFullscreen();
+});
+
+// Disconnect
+document.getElementById('btn-disconnect').addEventListener('click', () => {
+    if (confirm('Отключиться от сеанса?')) {
+        ws.close();
+        showPage('landing');
+        resetState();
     }
 });
-document.getElementById('btn-taskmgr').addEventListener('click', () => {
-    toggleOverlay('taskmgr-overlay');
-    if (!document.getElementById('taskmgr-overlay').classList.contains('hidden')) send({ type: 'request_processes' });
-});
-document.getElementById('btn-audit').addEventListener('click', () => { toggleOverlay('audit-overlay'); renderAuditLog(); });
-document.getElementById('btn-draw').addEventListener('click', () => { if (drawingMode) disableDrawMode(); else enableDrawMode(); });
 
 document.querySelectorAll('.overlay-close').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -639,8 +664,8 @@ document.getElementById('screenshot-close').addEventListener('click', () => docu
 
 // ═══ Session Recording ═══
 let mediaRecorder = null, recordedChunks = [], isRecording = false;
-const btnRecord = document.getElementById('btn-record');
-btnRecord.addEventListener('click', () => { if (isRecording) stopRecording(); else startRecording(); });
+const btnRec = document.getElementById('btn-rec');
+// btnRec listener is set up above
 function startRecording() {
     try {
         const stream = canvas.captureStream(30);
@@ -655,14 +680,14 @@ function startRecording() {
             a.click(); URL.revokeObjectURL(url); showToast('💾 Запись сохранена!');
         };
         mediaRecorder.start(1000); isRecording = true;
-        btnRecord.classList.add('recording'); btnRecord.textContent = '⏹';
+        btnRec.classList.add('recording'); btnRec.textContent = '⏹';
         showToast('⏺ Запись начата');
     } catch { showToast('❌ Не удалось начать запись'); }
 }
 function stopRecording() {
     if (mediaRecorder && isRecording) {
         mediaRecorder.stop(); isRecording = false;
-        btnRecord.classList.remove('recording'); btnRecord.textContent = '⏺';
+        btnRec.classList.remove('recording'); btnRec.textContent = '🔴';
     }
 }
 
